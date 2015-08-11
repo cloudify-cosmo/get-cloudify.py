@@ -1,9 +1,9 @@
 This scripts installs Cloudify's CLI (http://github.com/cloudify-cosmo/cloudify-cli).
 
-It currently supports Windows (32 and 64 bit), OS x, Debian/RHEL based distributions and Arch.
+It currently supports Windows (32 and 64 bit), OSX, Debian/RHEL based distributions and Arch.
 It requires Python 2.7.x to run. Other than that, it will attempt to install all other requirements for you.
 
-Download:
+Download manually or:
 
 ```bash
 curl -O http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/get-cloudify.py
