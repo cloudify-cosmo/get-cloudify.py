@@ -215,9 +215,8 @@ def install_module(module, version=False, pre=False, virtualenv_path=False,
     if requirement_files:
         for req_file in requirement_files:
             pip_cmd.extend(['-r', req_file])
-    pip_cmd.append('{0}{1}'.format(module, '=={0}'.format(version or '')))
-    # if version:
-    #     pip_cmd.append(version)
+    module = '{0}=={1}'.format(module, version) if version else module
+    pip_cmd.append(module)
     if wheelspath:
         pip_cmd.extend(
             ['--use-wheel', '--no-index', '--find-links', wheelspath])
