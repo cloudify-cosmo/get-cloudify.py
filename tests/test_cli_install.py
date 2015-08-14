@@ -117,3 +117,19 @@ class CliInstallTests(testtools.TestCase):
             self.assertIn('Cloudify CLI 3.2', proc.aggr_stderr)
         finally:
             shutil.rmtree(tempdir)
+
+    def test_cli_install_pre(self):
+        tempdir = tempfile.mkdtemp()
+        install_args = {
+            'virtualenv': tempdir,
+            'pre': True
+        }
+        try:
+            self.install_cloudify(install_args)
+            cfy_path = os.path.join(
+                self.get_cloudify._get_env_bin_path(tempdir), 'cfy')
+            proc = self.get_cloudify.run('{0} --version'.format(cfy_path))
+            self.assertIn('Cloudify CLI 3', proc.aggr_stderr)
+            assert 'm' in proc.aggr_stderr or 'rc' in proc.aggr_stderr
+        finally:
+            shutil.rmtree(tempdir)
