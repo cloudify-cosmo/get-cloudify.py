@@ -17,13 +17,13 @@
 # Install Cloudify on Debian and Ubuntu
 # apt-get update
 # apt-get install -y curl
-# curl -L https://www.dropbox.com/s/ibwdmqhwnf4bewc/get-cloudify.py -o get-cloudify.py && python get-cloudify.py -f  # NOQA
+# curl -L http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/get-cloudify.py -o get-cloudify.py && python get-cloudify.py -f  # NOQA
 
 # Install Cloudify on Arch Linux
 # pacman -Syu --noconfirm
 # pacman-db-upgrade
 # pacman -S python2 --noconfirm
-# curl -L https://www.dropbox.com/s/ibwdmqhwnf4bewc/get-cloudify.py -o get-cloudify.py && python2 get-cloudify.py -f --pythonpath=python2 # NOQA
+# curl -L http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/get-cloudify.py -o get-cloudify.py && python2 get-cloudify.py -f --pythonpath=python2 # NOQA
 
 # Install Cloudify on CentOS/RHEL
 # yum -y update
@@ -33,7 +33,7 @@
 # tar -xzvf Python-2.7.6.tgz
 # cd Python-2.7.6
 # ./configure --prefix=/usr/local && make && make altinstall
-# curl -L https://www.dropbox.com/s/ibwdmqhwnf4bewc/get-cloudify.py -o get-cloudify.py && python2.7 get-cloudify.py --pythonpath=python2.7 -f # NOQA
+# curl -L http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/get-cloudify.py -o get-cloudify.py && python2.7 get-cloudify.py --pythonpath=python2.7 -f # NOQA
 
 # Install Cloudify on Windows (Python 32/64bit)
 # Install Python 2.7.x 32/64bit from https://www.python.org/downloads/release/python-279/  # NOQA
