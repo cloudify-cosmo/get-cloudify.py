@@ -23,7 +23,7 @@
 # pacman -Syu --noconfirm
 # pacman-db-upgrade
 # pacman -S python2 --noconfirm
-# curl -O -L http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/get-cloudify.py && python2 get-cloudify.py -f --pythonpath=python2 # NOQA
+# curl -O -L http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/get-cloudify.py && python2 get-cloudify.py -f --python_path=python2 # NOQA
 
 # Install Cloudify on CentOS/RHEL
 # yum -y update
@@ -33,7 +33,7 @@
 # tar -xzvf Python-2.7.6.tgz
 # cd Python-2.7.6
 # ./configure --prefix=/usr/local && make && make altinstall
-# curl -O -L http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/get-cloudify.py && python2.7 get-cloudify.py --pythonpath=python2.7 -f # NOQA
+# curl -O -L http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/get-cloudify.py && python2.7 get-cloudify.py --python_path=python2.7 -f # NOQA
 
 # Install Cloudify on Windows (Python 32/64bit)
 # Install Python 2.7.x 32/64bit from https://www.python.org/downloads/release/python-279/  # NOQA
@@ -55,6 +55,7 @@ import shutil
 import time
 import tarfile
 from threading import Thread
+from contextlib import closing
 
 
 DESCRIPTION = '''This script attempts(!) to install Cloudify's CLI on Linux,
@@ -73,15 +74,15 @@ you're in.
 
 The script allows you to install requirement txt files when installing from
 --source.
-If --withrequirements is provided with a value (a URL or path to
+If --with-requirements is provided with a value (a URL or path to
 a requirements file) it will use it. If it's provided without a value, it
 will try to download the archive provided in --source, extract it, and look for
 dev-requirements.txt and requirements.txt files within it.
 
-Passing the --wheelspath allows for an offline installation of Cloudify
+Passing the --wheels-path allows for an offline installation of Cloudify
 from predownloaded Cloudify dependency wheels. Note that if wheels are found
-within the default wheels directory or within --wheelspath, they will (unless
-the --forceonline flag is set) be used instead of performing an online
+within the default wheels directory or within --wheels-path, they will (unless
+the --force-online flag is set) be used instead of performing an online
 installation.
 
 The script will attempt to install all necessary requirements including
@@ -101,7 +102,7 @@ python.
 
 By default, the script assumes that the Python executable is in the
 path and is called 'python' on Linux and 'c:\python27\python.exe on Windows.
-The Python path can be overriden by using the --pythonpath flag.
+The Python path can be overriden by using the --python_path flag.
 
 Please refer to Cloudify's documentation at http://getcloudify.org for
 additional information.'''
@@ -113,6 +114,10 @@ REQUIREMENT_FILE_NAMES = ['dev-requirements.txt', 'requirements.txt']
 PIP_URL = 'https://bootstrap.pypa.io/get-pip.py'
 PYCR64_URL = 'http://www.voidspace.org.uk/downloads/pycrypto26/pycrypto-2.6.win-amd64-py2.7.exe'  # NOQA
 PYCR32_URL = 'http://www.voidspace.org.uk/downloads/pycrypto26/pycrypto-2.6.win32-py2.7.exe'  # NOQA
+
+NODEJS_URL = 'http://nodejs.org/dist/v{0}/node-v{0}-linux-x64.tar.gz'.format('0.10.35')  # NOQA
+DSL_PARSER_CLI_URL = 'https://github.com/cloudify-cosmo/cloudify-dsl-parser-cli/archive/master.zip'  # NOQA
+COMPOSER_URL = 'https://s3.amazonaws.com/cloudify-ui/composer-builds/{0}/blueprintcomposer-{0}.tgz'  # NOQA
 
 PLATFORM = sys.platform
 IS_WIN = (PLATFORM == 'win32')
@@ -185,7 +190,7 @@ def drop_root_privileges():
     os.seteuid(int(os.environ.get('SUDO_UID', 0)))
 
 
-def make_virtualenv(virtualenv_dir, python_path):
+def make_virtualenv(virtualenv_dir, python_path='python2'):
     """This will create a virtualenv. If no `python_path` is supplied,
     will assume that `python` is in path. This default assumption is provided
     via the argument parser.
@@ -197,14 +202,14 @@ def make_virtualenv(virtualenv_dir, python_path):
 
 
 def install_module(module, version=False, pre=False, virtualenv_path=False,
-                   wheelspath=False, requirement_files=None, upgrade=False):
+                   wheels_path=False, requirement_files=None, upgrade=False):
     """This will install a Python module.
 
     Can specify a specific version.
     Can specify a prerelease.
     Can specify a virtualenv to install in.
     Can specify a list of paths or urls to requirement txt files.
-    Can specify a local wheelspath to use for offline installation.
+    Can specify a local wheels_path to use for offline installation.
     Can request an upgrade.
     """
     lgr.info('Installing {0}...'.format(module))
@@ -217,9 +222,9 @@ def install_module(module, version=False, pre=False, virtualenv_path=False,
             pip_cmd.extend(['-r', req_file])
     module = '{0}=={1}'.format(module, version) if version else module
     pip_cmd.append(module)
-    if wheelspath:
+    if wheels_path:
         pip_cmd.extend(
-            ['--use-wheel', '--no-index', '--find-links', wheelspath])
+            ['--use-wheel', '--no-index', '--find-links', wheels_path])
     if pre:
         pip_cmd.append('--pre')
     if upgrade:
@@ -291,13 +296,89 @@ class PipeReader(Thread):
                 time.sleep(PROCESS_POLLING_INTERVAL)
 
 
+def untar(archive, destination):
+    """Extracts files from an archive to a destination folder.
+    """
+    lgr.debug('Extracting tar.gz {0} to {1}...'.format(archive, destination))
+    with closing(tarfile.open(name=archive)) as tar:
+        files = [f for f in tar.getmembers()]
+        tar.extractall(path=destination, members=files)
+
+
+class ComposerInstaller():
+
+    NODEJS_HOME = '/opt/nodejs'
+
+    def __init__(self, version, uninstall=False):
+        self.version = version
+        self.uninstall = uninstall
+
+    def execute(self):
+        if self.uninstall:
+            lgr.info('Uninstalling Cloudify Blueprint Composer.')
+            sys.exit(self.remove_all())
+        self.install_nodejs()
+        self.install_composer()
+        self.install_dsl_parser()
+        lgr.info(
+            'You can now run: '
+            'sudo {0}/bin/node '
+            '/var/www/blueprint-composer/package/server.js '
+            'to run Cloudify Blueprint Composer.'.format(
+                self.NODEJS_HOME))
+
+    def install_nodejs(self):
+        tmp_dir = tempfile.mkdtemp()
+        fd, tmp_file = tempfile.mkstemp()
+        os.close(fd)
+        run('mkdir -p {0}'.format(self.NODEJS_HOME))
+        try:
+            download_file(NODEJS_URL, tmp_file)
+            untar(tmp_file, tmp_dir)
+            source = os.path.join(
+                tmp_dir, [d for d in os.walk(tmp_dir).next()[1]][0])
+            run('mv {0}/* {1}'.format(source, self.NODEJS_HOME))
+        finally:
+            shutil.rmtree(tmp_dir)
+            os.remove(tmp_file)
+
+    @staticmethod
+    def install_dsl_parser():
+        drop_root_privileges()
+        home = os.path.expanduser('~')
+        venv = '{0}/dsl-cli-ve2'.format(home)
+        make_virtualenv(venv)
+        install_module(DSL_PARSER_CLI_URL, virtualenv_path=venv)
+
+    def install_composer(self):
+        fd, tmp_file = tempfile.mkstemp()
+        os.close(fd)
+        composer_path = '/var/www/blueprint-composer'
+        run('mkdir -p {0}'.format(composer_path))
+        try:
+            download_file(COMPOSER_URL.format(self.version), tmp_file)
+            untar(tmp_file, composer_path)
+        finally:
+            os.remove(tmp_file)
+
+    def remove_all(self):
+        home = os.path.expanduser('~')
+        venv = '{0}/dsl-cli-ve2'.format(home)
+        lgr.info('Removing Nodejs')
+        run('rm -rf {0}'.format(self.NODEJS_HOME))
+        lgr.info('Removing DSL Parser...')
+        run('rm -rf {0}'.format(venv))
+        lgr.info('Removing Composer...')
+        run('rm -rf /var/www/blueprint-composer')
+
+
 class CloudifyInstaller():
     def __init__(self, force=False, upgrade=False, virtualenv='',
-                 version='', pre=False, source='', withrequirements='',
-                 forceonline=False, wheelspath='wheelhouse',
-                 pythonpath='python', installpip=False,
-                 installvirtualenv=False, installpythondev=False,
-                 installpycrypto=False, os_distro=None, os_release=None,
+                 version='', pre=False, source='', with_requirements='',
+                 force_online=False, wheels_path='wheelhouse',
+                 python_path='python', install_pip=False,
+                 install_virtualenv=False, install_pythondev=False,
+                 install_pycrypto=False, os_distro=None, os_release=None,
                  **kwargs):
         self.force = force
         self.upgrade = upgrade
@@ -305,19 +386,19 @@ class CloudifyInstaller():
         self.version = version
         self.pre = pre
         self.source = source
-        self.withrequirements = withrequirements
-        self.force_online = forceonline
-        self.wheels_path = wheelspath
-        self.python_path = pythonpath
-        self.installpip = installpip
-        self.installvirtualenv = installvirtualenv
-        self.installpythondev = installpythondev
-        self.installpycrypto = installpycrypto
+        self.with_requirements = with_requirements
+        self.force_online = force_online
+        self.wheels_path = wheels_path
+        self.python_path = python_path
+        self.install_pip = install_pip
+        self.install_virtualenv = install_virtualenv
+        self.install_pythondev = install_pythondev
+        self.install_pycrypto = install_pycrypto
 
         # TODO: we should test all mutually exclusive arguments.
-        if not IS_WIN and self.installpycrypto:
+        if not IS_WIN and self.install_pycrypto:
             lgr.warning('Pycrypto only relevant on Windows.')
-        if not (IS_LINUX or IS_DARWIN) and self.installpythondev:
+        if not (IS_LINUX or IS_DARWIN) and self.install_pythondev:
             lgr.warning('Pythondev only relevant on Linux or OSx.')
 
         os_props = get_os_props()
@@ -329,7 +410,7 @@ class CloudifyInstaller():
 
         --force argument forces installation of all prerequisites.
         If a wheels directory is found, it will be used for offline
-        installation unless explicitly prevented using the --forceonline flag.
+        installation unless explicitly prevented using the --force_online flag.
         If an offline installation fails (for instance, not all wheels were
         found), an online installation process will commence.
         """
@@ -339,15 +420,15 @@ class CloudifyInstaller():
 
         module = self.source or 'cloudify'
 
-        if self.force or self.installpip:
+        if self.force or self.install_pip:
             self.install_pip()
 
         if self.virtualenv:
-            if self.force or self.installvirtualenv:
+            if self.force or self.install_virtualenv:
                 self.install_virtualenv()
             env_bin_path = _get_env_bin_path(self.virtualenv)
 
-        if IS_LINUX and (self.force or self.installpythondev):
+        if IS_LINUX and (self.force or self.install_pythondev):
             self.install_pythondev(self.distro)
         if (IS_VIRTUALENV or self.virtualenv) and not IS_WIN:
             # drop root permissions so that installation is done using the
@@ -358,13 +439,13 @@ class CloudifyInstaller():
                     env_bin_path, ('activate.bat' if IS_WIN else 'activate'))):
                 make_virtualenv(self.virtualenv, self.python_path)
 
-        if IS_WIN and (self.force or self.installpycrypto):
+        if IS_WIN and (self.force or self.install_pycrypto):
             self.install_pycrypto(self.virtualenv)
 
-        # if withrequirements is not provided, this will be False.
+        # if with_requirements is not provided, this will be False.
         # if it's provided without a value, it will be a list.
-        if isinstance(self.withrequirements, list):
-            self.withrequirements = self.withrequirements \
+        if isinstance(self.with_requirements, list):
+            self.with_requirements = self.with_requirements \
                 or self._get_default_requirement_files(self.source)
 
         if self.force_online or not os.path.isdir(self.wheels_path):
@@ -372,7 +453,7 @@ class CloudifyInstaller():
                            version=self.version,
                            pre=self.pre,
                            virtualenv_path=self.virtualenv,
-                           requirement_files=self.withrequirements,
+                           requirement_files=self.with_requirements,
                            upgrade=self.upgrade)
         elif os.path.isdir(self.wheels_path):
             lgr.info('Wheels directory found: "{0}". '
@@ -382,8 +463,8 @@ class CloudifyInstaller():
                 install_module(module=module,
                                pre=True,
                                virtualenv_path=self.virtualenv,
-                               wheelspath=self.wheels_path,
-                               requirement_files=self.withrequirements,
+                               wheels_path=self.wheels_path,
+                               requirement_files=self.with_requirements,
                                upgrade=self.upgrade)
             except Exception as ex:
                 lgr.warning('Offline installation failed ({0}).'.format(
@@ -392,7 +473,7 @@ class CloudifyInstaller():
                                version=self.version,
                                pre=self.pre,
                                virtualenv_path=self.virtualenv,
-                               requirement_files=self.withrequirements,
+                               requirement_files=self.with_requirements,
                                upgrade=self.upgrade)
         if self.virtualenv:
             activate_path = os.path.join(env_bin_path, 'activate')
@@ -433,7 +514,7 @@ class CloudifyInstaller():
                 get_pip_path = os.path.join(tempdir, 'get-pip.py')
                 try:
                     download_file(PIP_URL, get_pip_path)
-                except StandardError as e:
+                except Exception as e:
                     sys.exit('Failed downloading pip from {0}. ({1})'.format(
                              PIP_URL, e.message))
                 result = run('{0} {1}'.format(
@@ -548,22 +629,26 @@ def parse_args(args=None):
         def __call__(self, parser, args, values, option_string=None):
             if not args.source:
                 parser.error(
-                    '--source is required when calling --withrequirements.')
+                    '--source is required when calling --with_requirements.')
             setattr(args, self.dest, values)
 
     parser = argparse.ArgumentParser(
         description=DESCRIPTION, formatter_class=argparse.RawTextHelpFormatter)
     default_group = parser.add_mutually_exclusive_group()
-    version_group = parser.add_mutually_exclusive_group()
-    online_group = parser.add_mutually_exclusive_group()
     default_group.add_argument('-v', '--verbose', action='store_true',
                                help='Verbose level logging to shell.')
     default_group.add_argument('-q', '--quiet', action='store_true',
                                help='Only print errors.')
-    parser.add_argument(
+
+    subparsers = parser.add_subparsers(help='Cloudify Installer.')
+
+    cli = subparsers.add_parser('cli', help='Installs Cloudify CLI.')
+    version_group = cli.add_mutually_exclusive_group()
+    online_group = cli.add_mutually_exclusive_group()
+    cli.add_argument(
         '-f', '--force', action='store_true',
         help='Force install any requirements (USE WITH CARE!).')
-    parser.add_argument(
+    cli.add_argument(
         '-e', '--virtualenv', type=str,
         help='Path to a Virtualenv to install Cloudify in.')
     version_group.add_argument(
@@ -575,43 +660,54 @@ def parse_args(args=None):
     version_group.add_argument(
         '-s', '--source', type=str,
         help='Install from the provided URL or local path.')
-    parser.add_argument(
-        '-r', '--withrequirements', nargs='*',
+    cli.add_argument(
+        '-r', '--with-requirements', nargs='*',
         help='Install default or provided requirements file.',
         action=VerifySource)
-    parser.add_argument(
+    cli.add_argument(
         '-u', '--upgrade', action='store_true',
         help='Upgrades Cloudify if already installed.')
     online_group.add_argument(
-        '--forceonline', action='store_true',
+        '--force-online', action='store_true',
         help='Even if wheels are found locally, install from PyPI.')
     online_group.add_argument(
-        '--wheelspath', type=str, default='wheelhouse',
+        '--wheels-path', type=str, default='wheelhouse',
         help='Path to wheels (defaults to "<cwd>/wheelhouse").')
     if IS_WIN:
-        parser.add_argument(
-            '--pythonpath', type=str, default='c:/python27/python.exe',
+        cli.add_argument(
+            '--python-path', type=str, default='c:/python27/python.exe',
             help='Python path to use (defaults to "c:/python27/python.exe") '
                  'when creating a virtualenv.')
     else:
-        parser.add_argument(
-            '--pythonpath', type=str, default='python',
+        cli.add_argument(
+            '--python-path', type=str, default='python',
             help='Python path to use (defaults to "python") '
                  'when creating a virtualenv.')
-    parser.add_argument(
-        '--installpip', action='store_true',
+    cli.add_argument(
+        '--install-pip', action='store_true',
         help='Attempt to install pip.')
-    parser.add_argument(
-        '--installvirtualenv', action='store_true',
+    cli.add_argument(
+        '--install-virtualenv', action='store_true',
         help='Attempt to install Virtualenv.')
     if IS_LINUX:
-        parser.add_argument(
-            '--installpythondev', action='store_true',
+        cli.add_argument(
+            '--install-pythondev', action='store_true',
             help='Attempt to install Python Developers Package.')
     elif IS_WIN:
-        parser.add_argument(
-            '--installpycrypto', action='store_true',
+        cli.add_argument(
+            '--install-pycrypto', action='store_true',
             help='Attempt to install PyCrypto.')
+
+    composer = subparsers.add_parser(
+        'composer', help='Installs Cloudufy Composer.')
+    composer = composer.add_mutually_exclusive_group(required=True)
+    composer.add_argument(
+        '--version', type=str,
+        help='Installs a specific version.')
+    composer.add_argument(
+        '--uninstall', action='store_true',
+        help='Uninstalls the composer.')
+
     return parser.parse_args(args)
 
 
@@ -626,9 +722,13 @@ if __name__ == '__main__':
         lgr.setLevel(logging.DEBUG)
     else:
         lgr.setLevel(logging.INFO)
-    handle_upgrade(args.upgrade, args.virtualenv)
 
     xargs = ['quiet', 'verbose']
     args = {arg: v for arg, v in vars(args).items() if arg not in xargs}
-    installer = CloudifyInstaller(**args)
-    installer.execute()
+    if 'source' in args:
+        handle_upgrade(args['upgrade'], args['virtualenv'])
+        installer = CloudifyInstaller(**args)
+        installer.execute()
+    else:
+        installer = ComposerInstaller(**args)
+        installer.execute()
