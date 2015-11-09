@@ -115,7 +115,8 @@ PIP_URL = 'https://bootstrap.pypa.io/get-pip.py'
 PYCR64_URL = 'http://www.voidspace.org.uk/downloads/pycrypto26/pycrypto-2.6.win-amd64-py2.7.exe'  # NOQA
 PYCR32_URL = 'http://www.voidspace.org.uk/downloads/pycrypto26/pycrypto-2.6.win32-py2.7.exe'  # NOQA
 
-NODEJS_URL = 'http://nodejs.org/dist/v{0}/node-v{0}-linux-x64.tar.gz'.format('0.10.35')  # NOQA
+LINUX_NODEJS_URL = 'http://nodejs.org/dist/v{0}/node-v{0}-linux-x64.tar.gz'.format('0.10.35')  # NOQA
+OSX_NODEJS_URL = 'https://nodejs.org/download/release/v{0}/node-v{0}-darwin-x64.tar.gz'.format('0.10.35')  # NOQA
 DSL_PARSER_CLI_URL = 'https://github.com/cloudify-cosmo/cloudify-dsl-parser-cli/archive/master.zip'  # NOQA
 COMPOSER_URL = 'https://s3.amazonaws.com/cloudify-ui/composer-builds/{0}/blueprintcomposer-{0}.tgz'  # NOQA
 
@@ -173,6 +174,10 @@ def run(cmd, suppress_errors=False):
     return proc
 
 
+def _is_root():
+    return os.getuid() == 0
+
+
 def drop_root_privileges():
     """Drop root privileges
 
@@ -182,7 +187,7 @@ def drop_root_privileges():
     install in the system Python or using a Sudoer.
     """
     # maybe we're not root
-    if not os.getuid() == 0:
+    if not _is_root():
         return
 
     lgr.info('Dropping root permissions...')
@@ -307,7 +312,10 @@ def untar(archive, destination):
 
 class ComposerInstaller():
 
-    NODEJS_HOME = '/opt/nodejs'
+    root = os.path.abspath(os.sep)
+    NODEJS_HOME = os.path.join(root, 'opt', 'nodejs')
+    COMPOSER_HOME = os.path.join(root, 'var', 'www', 'blueprint-composer')
+    DSL_PARSER_HOME = os.path.join(root, 'opt', 'cloudify-dsl-parser')
 
     def __init__(self, version, uninstall=False):
         self.version = version
@@ -328,48 +336,50 @@ class ComposerInstaller():
                 self.NODEJS_HOME))
 
     def install_nodejs(self):
-        tmp_dir = tempfile.mkdtemp()
-        fd, tmp_file = tempfile.mkstemp()
+        td = tempfile.mkdtemp()
+        fd, tf = tempfile.mkstemp()
         os.close(fd)
-        run('mkdir -p {0}'.format(self.NODEJS_HOME))
+        if not os.path.isdir(self.NODEJS_HOME):
+            os.makedirs(self.NODEJS_HOME)
         try:
-            download_file(NODEJS_URL, tmp_file)
-            untar(tmp_file, tmp_dir)
+            if IS_LINUX:
+                download_file(LINUX_NODEJS_URL, tf)
+            elif IS_DARWIN:
+                download_file(OSX_NODEJS_URL, tf)
+            untar(tf, td)
             source = os.path.join(
-                tmp_dir, [d for d in os.walk(tmp_dir).next()[1]][0])
-            run('mv {0}/* {1}'.format(source, self.NODEJS_HOME))
+                td, [d for d in os.walk(td).next()[1]][0])
+            for obj in os.listdir(source):
+                shutil.move(os.path.join(source, obj), self.NODEJS_HOME)
         finally:
-            shutil.rmtree(tmp_dir)
-            os.remove(tmp_file)
+            shutil.rmtree(td)
+            os.remove(tf)
 
-    @staticmethod
-    def install_dsl_parser():
-        drop_root_privileges()
-        home = os.path.expanduser('~')
-        venv = '{0}/dsl-cli-ve2'.format(home)
-        make_virtualenv(venv)
-        install_module(DSL_PARSER_CLI_URL, virtualenv_path=venv)
+    def install_dsl_parser(self):
+        # drop_root_privileges()
+        # venv = os.path.join(os.path.expanduser('~'), 'dsl-cli-ve2')
+        make_virtualenv(self.DSL_PARSER_HOME)
+        install_module(
+            DSL_PARSER_CLI_URL, virtualenv_path=self.DSL_PARSER_HOME)
 
     def install_composer(self):
-        fd, tmp_file = tempfile.mkstemp()
+        fd, tf = tempfile.mkstemp()
         os.close(fd)
-        composer_path = '/var/www/blueprint-composer'
-        run('mkdir -p {0}'.format(composer_path))
+        if not os.path.isdir(self.COMPOSER_HOME):
+            os.makedirs(self.COMPOSER_HOME)
         try:
-            download_file(COMPOSER_URL.format(self.version), tmp_file)
-            untar(tmp_file, composer_path)
+            download_file(COMPOSER_URL.format(self.version), tf)
+            untar(tf, self.COMPOSER_HOME)
         finally:
-            os.remove(tmp_file)
+            os.remove(tf)
 
     def remove_all(self):
-        home = os.path.expanduser('~')
-        venv = '{0}/dsl-cli-ve2'.format(home)
-        lgr.info('Removing Nodejs')
-        run('rm -rf {0}'.format(self.NODEJS_HOME))
-        lgr.info('Removing DSL Parser...')
-        run('rm -rf {0}'.format(venv))
+        lgr.info('Removing Nodejs...')
+        shutil.rmtree(self.NODEJS_HOME)
         lgr.info('Removing Composer...')
-        run('rm -rf /var/www/blueprint-composer')
+        shutil.rmtree(self.COMPOSER_HOME)
+        lgr.info('Removing DSL Parser...')
+        shutil.rmtree(self.DSL_PARSER_HOME)
 
 
 class CloudifyInstaller():
@@ -730,5 +740,9 @@ if __name__ == '__main__':
         installer = CloudifyInstaller(**args)
         installer.execute()
     else:
+        if not _is_root():
+            lgr.error('Composer installation requires sudo privileges. '
+                      'Please rerun the script with elevated privileges.')
+            sys.exit()
         installer = ComposerInstaller(**args)
         installer.execute()
