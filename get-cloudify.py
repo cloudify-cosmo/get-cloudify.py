@@ -58,7 +58,7 @@ from threading import Thread
 from contextlib import closing
 
 
-DESCRIPTION = '''This script attempts(!) to install Cloudify's CLI on Linux,
+DESCRIPTION = '''This script installs Cloudify's CLI on Linux,
 Windows (with Python32 AND 64), and OS X (Darwin).
 On the linux front, it supports Debian/Ubuntu, CentOS/RHEL and Arch.
 
@@ -105,7 +105,12 @@ path and is called 'python' on Linux and 'c:\python27\python.exe on Windows.
 The Python path can be overriden by using the --python_path flag.
 
 Please refer to Cloudify's documentation at http://getcloudify.org for
-additional information.'''
+additional information.
+
+A Composer installer is also available and will install nodejs,
+Cloudify\'s DSL parser and the Composer itself into designated directories.
+The composer installer also provides and uninstaller.'''
+
 
 IS_VIRTUALENV = hasattr(sys, 'real_prefix')
 
@@ -317,9 +322,20 @@ class ComposerInstaller():
     COMPOSER_HOME = os.path.join(root, 'var', 'www', 'blueprint-composer')
     DSL_PARSER_HOME = os.path.join(root, 'opt', 'cloudify-dsl-parser')
 
-    def __init__(self, version, uninstall=False):
-        self.version = version
+    def __init__(self, composer_url='', version='', uninstall=False,
+                 nodejs_url=LINUX_NODEJS_URL if IS_LINUX else OSX_NODEJS_URL,
+                 dsl_cli_url=DSL_PARSER_CLI_URL):
+        if IS_WIN:
+            sys.exit('This installer does not currently support installing '
+                     'the composer on Windows.')
+
+        if (not composer_url and not version and not uninstall):
+            sys.exit('Either composer_url or version must be supplied.')
+
         self.uninstall = uninstall
+        self.nodejs_url = nodejs_url
+        self.dsl_cli_url = dsl_cli_url
+        self.composer_url = composer_url or COMPOSER_URL.format(version)
 
     def execute(self):
         if self.uninstall:
@@ -342,10 +358,7 @@ class ComposerInstaller():
         if not os.path.isdir(self.NODEJS_HOME):
             os.makedirs(self.NODEJS_HOME)
         try:
-            if IS_LINUX:
-                download_file(LINUX_NODEJS_URL, tf)
-            elif IS_DARWIN:
-                download_file(OSX_NODEJS_URL, tf)
+            download_file(self.nodejs_url, tf)
             untar(tf, td)
             source = os.path.join(
                 td, [d for d in os.walk(td).next()[1]][0])
@@ -356,11 +369,9 @@ class ComposerInstaller():
             os.remove(tf)
 
     def install_dsl_parser(self):
-        # drop_root_privileges()
-        # venv = os.path.join(os.path.expanduser('~'), 'dsl-cli-ve2')
         make_virtualenv(self.DSL_PARSER_HOME)
         install_module(
-            DSL_PARSER_CLI_URL, virtualenv_path=self.DSL_PARSER_HOME)
+            self.dsl_cli_url, virtualenv_path=self.DSL_PARSER_HOME)
 
     def install_composer(self):
         fd, tf = tempfile.mkstemp()
@@ -368,18 +379,33 @@ class ComposerInstaller():
         if not os.path.isdir(self.COMPOSER_HOME):
             os.makedirs(self.COMPOSER_HOME)
         try:
-            download_file(COMPOSER_URL.format(self.version), tf)
+            download_file(self.composer_url, tf)
             untar(tf, self.COMPOSER_HOME)
         finally:
             os.remove(tf)
 
     def remove_all(self):
-        lgr.info('Removing Nodejs...')
-        shutil.rmtree(self.NODEJS_HOME)
-        lgr.info('Removing Composer...')
-        shutil.rmtree(self.COMPOSER_HOME)
-        lgr.info('Removing DSL Parser...')
-        shutil.rmtree(self.DSL_PARSER_HOME)
+        action = raw_input(
+            'Note that this will remove the following: \n'
+            '{0}\n{1}\n{2}\n'
+            'Are you should you want to continue? (yes/no): '.format(
+                self.NODEJS_HOME,
+                self.COMPOSER_HOME,
+                self.DSL_PARSER_HOME)).lower()
+
+        if action in ('y', 'yes'):
+            if os.path.isdir(self.NODEJS_HOME):
+                lgr.debug('Removing Nodejs...')
+                shutil.rmtree(self.NODEJS_HOME)
+            if os.path.isdir(self.COMPOSER_HOME):
+                lgr.debug('Removing Composer...')
+                shutil.rmtree(self.COMPOSER_HOME)
+            if os.path.isdir(self.DSL_PARSER_HOME):
+                lgr.debug('Removing DSL Parser...')
+                shutil.rmtree(self.DSL_PARSER_HOME)
+            lgr.info('Uninstall Complete!')
+        else:
+            lgr.info('Uninstall Aborted.')
 
 
 class CloudifyInstaller():
@@ -710,13 +736,24 @@ def parse_args(args=None):
 
     composer = subparsers.add_parser(
         'composer', help='Installs Cloudufy Composer.')
-    composer = composer.add_mutually_exclusive_group(required=True)
-    composer.add_argument(
+    action_group = composer.add_mutually_exclusive_group(required=True)
+    action_group.add_argument(
         '--version', type=str,
         help='Installs a specific version.')
-    composer.add_argument(
+    action_group.add_argument(
+        '--composer-url', type=str,
+        help='A URL to Cloudify\'s Composer package.')
+    action_group.add_argument(
         '--uninstall', action='store_true',
         help='Uninstalls the composer.')
+    composer.add_argument(
+        '--nodejs-url', type=str,
+        default=LINUX_NODEJS_URL if IS_LINUX else OSX_NODEJS_URL,
+        help='A URL to a nodejs archive for your distro. This defaults '
+        'to the official URL.')
+    composer.add_argument(
+        '--dsl-cli-url', type=str, default=DSL_PARSER_CLI_URL,
+        help='A URL to the Cloudify-dsl-parser-cli archive.')
 
     return parser.parse_args(args)
 
