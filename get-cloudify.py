@@ -371,7 +371,7 @@ class ComposerInstaller():
     def install_dsl_parser(self):
         make_virtualenv(self.DSL_PARSER_HOME)
         install_module(
-            self.dsl_cli_url, virtualenv_path=self.DSL_PARSER_HOME)
+            self.dsl_cli_url, virtualenv_path=self.DSL_PARSER_HOME, requirement_files=['dev-requirements.txt'])
 
     def install_composer(self):
         fd, tf = tempfile.mkstemp()
