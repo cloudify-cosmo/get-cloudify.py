@@ -323,6 +323,7 @@ class ComposerInstaller():
     DSL_PARSER_HOME = os.path.join(root, 'opt', 'cloudify-dsl-parser')
 
     def __init__(self, composer_url='', version='', uninstall=False,
+                 with_requirements='',
                  nodejs_url=LINUX_NODEJS_URL if IS_LINUX else OSX_NODEJS_URL,
                  dsl_cli_url=DSL_PARSER_CLI_URL):
         if IS_WIN:
@@ -334,6 +335,7 @@ class ComposerInstaller():
 
         self.uninstall = uninstall
         self.nodejs_url = nodejs_url
+        self.with_requirements = with_requirements
         self.dsl_cli_url = dsl_cli_url
         self.composer_url = composer_url or COMPOSER_URL.format(version)
 
@@ -371,7 +373,7 @@ class ComposerInstaller():
     def install_dsl_parser(self):
         make_virtualenv(self.DSL_PARSER_HOME)
         install_module(
-            self.dsl_cli_url, virtualenv_path=self.DSL_PARSER_HOME, requirement_files=['dev-requirements.txt'])
+            self.dsl_cli_url, virtualenv_path=self.DSL_PARSER_HOME, requirement_files=self.with_requirements)
 
     def install_composer(self):
         fd, tf = tempfile.mkstemp()
@@ -751,6 +753,10 @@ def parse_args(args=None):
         default=LINUX_NODEJS_URL if IS_LINUX else OSX_NODEJS_URL,
         help='A URL to a nodejs archive for your distro. This defaults '
         'to the official URL.')
+    composer.add_argument(
+        '-r', '--with-requirements', nargs='*',
+        help='Install default or provided requirements file.',
+        action=VerifySource)
     composer.add_argument(
         '--dsl-cli-url', type=str, default=DSL_PARSER_CLI_URL,
         help='A URL to the Cloudify-dsl-parser-cli archive.')
