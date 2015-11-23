@@ -110,8 +110,7 @@ IS_VIRTUALENV = hasattr(sys, 'real_prefix')
 
 REQUIREMENT_FILE_NAMES = ['dev-requirements.txt', 'requirements.txt']
 # TODO: put these in a private storage
-PIP_URL = 'http://repository.cloudifysource.org/org/cloudify3/'
-'components/get-pip.py'
+PIP_URL = 'http://repository.cloudifysource.org/org/cloudify3/components/get-pip.py'  # NOQA
 PYCR64_URL = 'http://repository.cloudifysource.org/org/cloudify3/components/pycrypto-2.6.win-amd64-py2.7.exe'  # NOQA
 PYCR32_URL = 'http://repository.cloudifysource.org/org/cloudify3/components/pycrypto-2.6.win32-py2.7.exe'  # NOQA
 
