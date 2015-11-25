@@ -95,7 +95,7 @@ class CliBuilderUnitTests(testtools.TestCase):
         mock_false.side_effect = side_effect
         installer.find_pip = mock_false
 
-        ex = self.assertRaises(SystemExit, installer.install_pip)
+        ex = self.assertRaises(SystemExit, installer.get_pip)
         self.assertEqual(
             'Failed downloading pip from {0}. (Boom!)'.format(
                 self.get_cloudify.PIP_URL), ex.message)
@@ -103,8 +103,10 @@ class CliBuilderUnitTests(testtools.TestCase):
     def test_install_pip_fail(self):
         self.get_cloudify.download_file = mock.MagicMock(return_value=None)
 
-        pythonpath = 'non_existing_path'
-        installer = self.get_cloudify.CloudifyInstaller(pythonpath=pythonpath)
+        python_path = 'non_existing_path'
+        installer = self.get_cloudify.CloudifyInstaller(
+            python_path=python_path,
+        )
 
         mock_false = mock.MagicMock()
 
@@ -113,7 +115,7 @@ class CliBuilderUnitTests(testtools.TestCase):
         mock_false.side_effect = side_effect
         installer.find_pip = mock_false
 
-        ex = self.assertRaises(SystemExit, installer.install_pip)
+        ex = self.assertRaises(SystemExit, installer.get_pip)
         self.assertIn('Could not install pip', ex.message)
 
     def test_make_virtualenv_fail(self):

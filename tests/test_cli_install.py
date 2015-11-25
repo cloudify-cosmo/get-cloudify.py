@@ -61,7 +61,7 @@ class CliInstallTests(testtools.TestCase):
             requirements_file.write('sh==1.11')
         install_args = {
             'source': cloudify_cli_url,
-            'withrequirements': [temp_requirements_file.name],
+            'with_requirements': [temp_requirements_file.name],
             'virtualenv': tempdir,
         }
 
