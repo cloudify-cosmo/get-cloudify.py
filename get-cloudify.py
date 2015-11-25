@@ -74,15 +74,15 @@ you're in.
 
 The script allows you to install requirement txt files when installing from
 --source.
-If --withrequirements is provided with a value (a URL or path to
+If --with-requirements is provided with a value (a URL or path to
 a requirements file) it will use it. If it's provided without a value, it
 will try to download the archive provided in --source, extract it, and look for
 dev-requirements.txt and requirements.txt files within it.
 
-Passing the --wheelspath allows for an offline installation of Cloudify
+Passing the --wheels-path allows for an offline installation of Cloudify
 from predownloaded Cloudify dependency wheels. Note that if wheels are found
-within the default wheels directory or within --wheelspath, they will (unless
-the --forceonline flag is set) be used instead of performing an online
+within the default wheels directory or within --wheels-path, they will (unless
+the --force-online flag is set) be used instead of performing an online
 installation.
 
 The script will attempt to install all necessary requirements including
@@ -102,7 +102,7 @@ python.
 
 By default, the script assumes that the Python executable is in the
 path and is called 'python' on Linux and 'c:\python27\python.exe on Windows.
-The Python path can be overriden by using the --pythonpath flag.
+The Python path can be overriden by using the --python-path flag.
 
 Please refer to Cloudify's documentation at http://getcloudify.org for
 additional information.'''
@@ -295,30 +295,40 @@ class PipeReader(Thread):
 
 
 class CloudifyInstaller():
-    def __init__(self, force=False, upgrade=False, virtualenv='',
-                 version='', pre=False, source='', withrequirements='',
-                 forceonline=False, wheelspath='wheelhouse',
-                 pythonpath='python', installpip=False,
-                 installvirtualenv=False, installpythondev=False,
-                 installpycrypto=False, os_distro=None, os_release=None,
-                 **kwargs):
+    def __init__(self,
+                 force=False,
+                 upgrade=False,
+                 virtualenv='',
+                 version='',
+                 pre=False,
+                 source='',
+                 with_requirements='',
+                 force_online=False,
+                 wheels_path='wheelhouse',
+                 python_path='python',
+                 install_pip=False,
+                 install_virtualenv=False,
+                 install_pythondev=False,
+                 install_pycrypto=False,
+                 os_distro=None,
+                 os_release=None):
         self.force = force
         self.upgrade = upgrade
         self.virtualenv = virtualenv
         self.version = version
         self.pre = pre
         self.source = source
-        self.withrequirements = withrequirements
-        self.force_online = forceonline
-        self.wheels_path = wheelspath
-        self.python_path = pythonpath
-        self.installpip = installpip
-        self.installvirtualenv = installvirtualenv
-        self.installpythondev = installpythondev
-        self.installpycrypto = installpycrypto
+        self.with_requirements = with_requirements
+        self.force_online = force_online
+        self.wheels_path = wheels_path
+        self.python_path = python_path
+        self.install_pip = install_pip
+        self.install_virtualenv = install_virtualenv
+        self.install_pythondev = install_pythondev
+        self.install_pycrypto = install_pycrypto
 
         # TODO: we should test all mutually exclusive arguments.
-        if not IS_WIN and self.installpycrypto:
+        if not IS_WIN and self.install_pycrypto:
             logger.warning('Pycrypto only relevant on Windows.')
         if not (IS_LINUX or IS_DARWIN) and self.installpythondev:
             logger.warning('Pythondev only relevant on Linux or OSx.')
@@ -342,15 +352,15 @@ class CloudifyInstaller():
 
         module = self.source or 'cloudify'
 
-        if self.force or self.installpip:
+        if self.force or self.install_pip:
             self.install_pip()
 
         if self.virtualenv:
-            if self.force or self.installvirtualenv:
+            if self.force or self.install_virtualenv:
                 self.install_virtualenv()
             env_bin_path = _get_env_bin_path(self.virtualenv)
 
-        if IS_LINUX and (self.force or self.installpythondev):
+        if IS_LINUX and (self.force or self.install_pythondev):
             self.install_pythondev(self.distro)
         if (IS_VIRTUALENV or self.virtualenv) and not IS_WIN:
             # drop root permissions so that installation is done using the
@@ -361,13 +371,13 @@ class CloudifyInstaller():
                     env_bin_path, ('activate.bat' if IS_WIN else 'activate'))):
                 make_virtualenv(self.virtualenv, self.python_path)
 
-        if IS_WIN and (self.force or self.installpycrypto):
+        if IS_WIN and (self.force or self.install_pycrypto):
             self.install_pycrypto(self.virtualenv)
 
-        # if withrequirements is not provided, this will be False.
+        # if with_requirements is not provided, this will be False.
         # if it's provided without a value, it will be a list.
-        if isinstance(self.withrequirements, list):
-            self.withrequirements = self.withrequirements \
+        if isinstance(self.with_requirements, list):
+            self.with_requirements = self.with_requirements \
                 or self._get_default_requirement_files(self.source)
 
         if self.force_online or not os.path.isdir(self.wheels_path):
@@ -375,7 +385,7 @@ class CloudifyInstaller():
                            version=self.version,
                            pre=self.pre,
                            virtualenv_path=self.virtualenv,
-                           requirement_files=self.withrequirements,
+                           requirement_files=self.with_requirements,
                            upgrade=self.upgrade)
         elif os.path.isdir(self.wheels_path):
             logger.info('Wheels directory found: "{0}". '
@@ -386,7 +396,7 @@ class CloudifyInstaller():
                                pre=True,
                                virtualenv_path=self.virtualenv,
                                wheelspath=self.wheels_path,
-                               requirement_files=self.withrequirements,
+                               requirement_files=self.with_requirements,
                                upgrade=self.upgrade)
             except Exception as ex:
                 logger.warning('Offline installation failed ({0}).'.format(
@@ -395,7 +405,7 @@ class CloudifyInstaller():
                                version=self.version,
                                pre=self.pre,
                                virtualenv_path=self.virtualenv,
-                               requirement_files=self.withrequirements,
+                               requirement_files=self.with_requirements,
                                upgrade=self.upgrade)
         if self.virtualenv:
             activate_path = os.path.join(env_bin_path, 'activate')
@@ -551,87 +561,226 @@ def parse_args(args=None):
         def __call__(self, parser, args, values, option_string=None):
             if not args.source:
                 parser.error(
-                    '--source is required when calling --withrequirements.')
+                    '--source is required when calling --with-requirements.')
             setattr(args, self.dest, values)
 
     parser = argparse.ArgumentParser(
-        description=DESCRIPTION, formatter_class=argparse.RawTextHelpFormatter)
-    default_group = parser.add_mutually_exclusive_group()
-    version_group = parser.add_mutually_exclusive_group()
-    online_group = parser.add_mutually_exclusive_group()
-    default_group.add_argument('-v', '--verbose', action='store_true',
-                               help='Verbose level logging to shell.')
-    default_group.add_argument('-q', '--quiet', action='store_true',
-                               help='Only print errors.')
-    parser.add_argument(
-        '-f', '--force', action='store_true',
-        help='Force install any requirements (USE WITH CARE!).')
-    parser.add_argument(
-        '-e', '--virtualenv', type=str,
-        help='Path to a Virtualenv to install Cloudify in.')
-    version_group.add_argument(
-        '--version', type=str,
-        help='Attempt to install a specific version of Cloudify.')
-    version_group.add_argument(
-        '--pre', action='store_true',
-        help='Attempt to install the latest Cloudify Milestone.')
-    version_group.add_argument(
-        '-s', '--source', type=str,
-        help='Install from the provided URL or local path.')
-    parser.add_argument(
-        '-r', '--withrequirements', nargs='*',
-        help='Install default or provided requirements file.',
-        action=VerifySource)
-    parser.add_argument(
-        '-u', '--upgrade', action='store_true',
-        help='Upgrades Cloudify if already installed.')
-    online_group.add_argument(
-        '--forceonline', action='store_true',
-        help='Even if wheels are found locally, install from PyPI.')
-    online_group.add_argument(
-        '--wheelspath', type=str, default='wheelhouse',
-        help='Path to wheels (defaults to "<cwd>/wheelhouse").')
+        description=DESCRIPTION,
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+
     if IS_WIN:
-        parser.add_argument(
-            '--pythonpath', type=str, default='c:/python27/python.exe',
-            help='Python path to use (defaults to "c:/python27/python.exe") '
-                 'when creating a virtualenv.')
+        python_path_default = 'c:/python27/python.exe'
     else:
-        parser.add_argument(
-            '--pythonpath', type=str, default='python',
-            help='Python path to use (defaults to "python") '
-                 'when creating a virtualenv.')
+        python_path_default = 'python'
+
+    verbosity_group = parser.add_mutually_exclusive_group()
+    verbosity_group.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='Verbose level logging to shell.',
+    )
+    verbosity_group.add_argument(
+        '-q', '--quiet',
+        action='store_true',
+        help='Only print errors.',
+    )
+
+    version_group = parser.add_mutually_exclusive_group()
+    version_group.add_argument(
+        '--version',
+        type=str,
+        help='Attempt to install a specific version of Cloudify.',
+    )
+    version_group.add_argument(
+        '--pre',
+        action='store_true',
+        help='Attempt to install the latest Cloudify Milestone.',
+    )
+    version_group.add_argument(
+        '-s', '--source',
+        type=str,
+        help='Install from the provided URL or local path.',
+    )
+
+    online_group = parser.add_mutually_exclusive_group()
+    # Deprecated argument, used to print warning and allow us to cleanly
+    # remove it in the future
+    online_group.add_argument(
+        '--forceonline',
+        action='store_true',
+        help=argparse.SUPPRESS,
+    )
+    online_group.add_argument(
+        '--force-online',
+        action='store_true',
+        help='Even if wheels are found locally, install from PyPI.',
+    )
+    # Deprecated argument, used to print warning and allow us to cleanly
+    # remove it in the future
+    online_group.add_argument(
+        '--wheelspath',
+        type=str,
+        help=argparse.SUPPRESS,
+    )
+    online_group.add_argument(
+        '--wheels-path',
+        type=str,
+        default='wheelhouse',
+        help='Path to wheels (defaults to "<cwd>/wheelhouse").',
+    )
+
+    # Non group arguments
     parser.add_argument(
-        '--installpip', action='store_true',
-        help='Attempt to install pip.')
+        '-f', '--force',
+        action='store_true',
+        help='Force install any requirements (USE WITH CARE!).',
+    )
     parser.add_argument(
-        '--installvirtualenv', action='store_true',
-        help='Attempt to install Virtualenv.')
+        '-e', '--virtualenv',
+        type=str,
+        help='Path to a Virtualenv to install Cloudify in.',
+    )
+    # Deprecated argument, used to print warning and allow us to cleanly
+    # remove it in the future
+    parser.add_argument(
+        '--pythonpath',
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        '--python-path',
+        type=str,
+        default=python_path_default,
+        help='Python path to use when creating a virtualenv.',
+    )
+    # Deprecated argument, used to print warning and allow us to cleanly
+    # remove it in the future
+    parser.add_argument(
+        '--installpip',
+        action='store_true',
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        '--install-pip',
+        action='store_true',
+        help='Attempt to install pip.',
+    )
+    # Deprecated argument, used to print warning and allow us to cleanly
+    # remove it in the future
+    parser.add_argument(
+        '--installvirtualenv',
+        action='store_true',
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        '--install-virtualenv',
+        action='store_true',
+        help='Attempt to install Virtualenv.',
+    )
+    # Deprecated argument, used to print warning and allow us to cleanly
+    # remove it in the future
+    parser.add_argument(
+        '--withrequirements',
+        nargs='*',
+        help=argparse.SUPPRESS,
+        action=VerifySource,
+    )
+    parser.add_argument(
+        '-r', '--with-requirements',
+        nargs='*',
+        help='Install default or provided requirements file.',
+        action=VerifySource,
+    )
+    parser.add_argument(
+        '-u', '--upgrade',
+        action='store_true',
+        help='Upgrades Cloudify if already installed.',
+    )
+
+    # OS dependent arguments
     if IS_LINUX:
+        # Deprecated argument, used to print warning and allow us to cleanly
+        # remove it in the future
         parser.add_argument(
-            '--installpythondev', action='store_true',
-            help='Attempt to install Python Developers Package.')
+            '--installpythondev',
+            action='store_true',
+            help=argparse.SUPPRESS,
+        )
+        parser.add_argument(
+            '--install-pythondev',
+            action='store_true',
+            help='Attempt to install Python Developers Package.',
+        )
     elif IS_WIN:
+        # Deprecated argument, used to print warning and allow us to cleanly
+        # remove it in the future
         parser.add_argument(
-            '--installpycrypto', action='store_true',
-            help='Attempt to install PyCrypto.')
-    return parser.parse_args(args)
+            '--install-pycrypto',
+            action='store_true',
+            help=argparse.SUPPRESS,
+        )
+        parser.add_argument(
+            '--installpycrypto',
+            action='store_true',
+            help='Attempt to install PyCrypto.',
+        )
+
+    # Get args as a dict
+    parsed_args = vars(parser.parse_args(args))
+
+    # Handle deprecation warnings
+    # TODO: It might be possible to generate the parser args automatically
+    # from this, but that would require using the same actions for the
+    # deprecated methods as the updated ones, which does not seem to be
+    # possible with argparse short of defining the args from dicts, which
+    # would also need to handle groups. This is probably only worth
+    # investigating if we are deprecating args a lot of the time.
+    # NOTE: Except where used in mutually exclusive groups, these will
+    # override the new arguments. Given that the deprecated arguments are now
+    # undocumented, this should only be a problem when someone is switching
+    # from old to new args and puts different values for each.
+    deprecations = {
+        'withrequirements': 'with_requirements',
+        'installvirtualenv': 'install_virtualenv',
+        'installpip': 'install_pip',
+        'pythonpath': 'python_path',
+        'wheelspath': 'wheels_path',
+        'forceonline': 'force_online',
+        'installpycrypto': 'install_pycrypto',
+        'installpythondev': 'install_pythondev',
+    }
+    for deprecated, new_value in deprecations.items():
+        if new_value in parsed_args and parsed_args[deprecated]:
+            logger.warning(
+                '--{depvar} is deprecated. Use --{newvar}. '
+                '--{depvar} will be removed in a future release.'.format(
+                    depvar=deprecated.replace('_', '-'),
+                    newvar=new_value.replace('_', '-'),
+                )
+            )
+            # Now make sure we use the value that was set
+            parsed_args[new_value] = parsed_args[deprecated]
+
+    return parsed_args, deprecations.keys()
 
 
 logger = init_logger(__file__)
 
 
 if __name__ == '__main__':
-    args = parse_args()
-    if args.quiet:
+    args, deprecated = parse_args()
+    if args['quiet']:
         logger.setLevel(logging.ERROR)
-    elif args.verbose:
+    elif args['verbose']:
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
-    handle_upgrade(args.upgrade, args.virtualenv)
+    handle_upgrade(args['upgrade'], args['virtualenv'])
 
-    xargs = ['quiet', 'verbose']
-    args = {arg: v for arg, v in vars(args).items() if arg not in xargs}
+    excluded_args = ['quiet', 'verbose']
+    excluded_args.extend(deprecated)
+    for arg in excluded_args:
+        if arg in args:
+            args.pop(arg)
     installer = CloudifyInstaller(**args)
     installer.execute()
