@@ -60,6 +60,7 @@ from threading import Thread
 DESCRIPTION = '''This script attempts(!) to install Cloudify's CLI on Linux,
 Windows (with Python32 AND 64), and OS X (Darwin).
 On the linux front, it supports Debian/Ubuntu, CentOS/RHEL and Arch.
+With Windows, cygwin should not be used.
 
 Note that the script attempts to not be instrusive by forcing the user
 to explicitly declare installation of various dependencies.
