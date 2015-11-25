@@ -122,7 +122,7 @@ IS_LINUX = (PLATFORM.startswith('linux'))
 PROCESS_POLLING_INTERVAL = 0.1
 
 # defined below
-lgr = None
+logger = None
 
 if not (IS_LINUX or IS_DARWIN or IS_WIN):
     sys.exit('Platform {0} not supported.'.format(PLATFORM))
@@ -143,15 +143,15 @@ def init_logger(logger_name):
 def run(cmd, suppress_errors=False):
     """Executes a command
     """
-    lgr.debug('Executing: {0}...'.format(cmd))
+    logger.debug('Executing: {0}...'.format(cmd))
     pipe = subprocess.PIPE
     proc = subprocess.Popen(
         cmd, shell=True, stdout=pipe, stderr=pipe)
 
     stderr_log_level = logging.NOTSET if suppress_errors else logging.ERROR
 
-    stdout_thread = PipeReader(proc.stdout, proc, lgr, logging.DEBUG)
-    stderr_thread = PipeReader(proc.stderr, proc, lgr, stderr_log_level)
+    stdout_thread = PipeReader(proc.stdout, proc, logger, logging.DEBUG)
+    stderr_thread = PipeReader(proc.stderr, proc, logger, stderr_log_level)
 
     stdout_thread.start()
     stderr_thread.start()
@@ -180,7 +180,7 @@ def drop_root_privileges():
     if not os.getuid() == 0:
         return
 
-    lgr.info('Dropping root permissions...')
+    logger.info('Dropping root permissions...')
     os.setegid(int(os.environ.get('SUDO_GID', 0)))
     os.seteuid(int(os.environ.get('SUDO_UID', 0)))
 
@@ -190,7 +190,7 @@ def make_virtualenv(virtualenv_dir, python_path):
     will assume that `python` is in path. This default assumption is provided
     via the argument parser.
     """
-    lgr.info('Creating Virtualenv {0}...'.format(virtualenv_dir))
+    logger.info('Creating Virtualenv {0}...'.format(virtualenv_dir))
     result = run('virtualenv -p {0} {1}'.format(python_path, virtualenv_dir))
     if not result.returncode == 0:
         sys.exit('Could not create virtualenv: {0}'.format(virtualenv_dir))
@@ -207,7 +207,7 @@ def install_module(module, version=False, pre=False, virtualenv_path=False,
     Can specify a local wheelspath to use for offline installation.
     Can request an upgrade.
     """
-    lgr.info('Installing {0}...'.format(module))
+    logger.info('Installing {0}...'.format(module))
     pip_cmd = ['pip', 'install']
     if virtualenv_path:
         pip_cmd[0] = os.path.join(
@@ -225,11 +225,11 @@ def install_module(module, version=False, pre=False, virtualenv_path=False,
     if upgrade:
         pip_cmd.append('--upgrade')
     if IS_VIRTUALENV and not virtualenv_path:
-        lgr.info('Installing within current virtualenv: {0}...'.format(
+        logger.info('Installing within current virtualenv: {0}...'.format(
             IS_VIRTUALENV))
     result = run(' '.join(pip_cmd))
     if not result.returncode == 0:
-        lgr.error(result.aggr_stdout)
+        logger.error(result.aggr_stdout)
         sys.exit('Could not install module: {0}.'.format(module))
 
 
@@ -244,10 +244,10 @@ def untar_requirement_files(archive, destination):
 
 
 def download_file(url, destination):
-    lgr.info('Downloading {0} to {1}'.format(url, destination))
+    logger.info('Downloading {0} to {1}'.format(url, destination))
     final_url = urllib.urlopen(url).geturl()
     if final_url != url:
-        lgr.debug('Redirected to {0}'.format(final_url))
+        logger.debug('Redirected to {0}'.format(final_url))
     f = urllib.URLopener()
     f.retrieve(final_url, destination)
 
@@ -316,9 +316,9 @@ class CloudifyInstaller():
 
         # TODO: we should test all mutually exclusive arguments.
         if not IS_WIN and self.installpycrypto:
-            lgr.warning('Pycrypto only relevant on Windows.')
+            logger.warning('Pycrypto only relevant on Windows.')
         if not (IS_LINUX or IS_DARWIN) and self.installpythondev:
-            lgr.warning('Pythondev only relevant on Linux or OSx.')
+            logger.warning('Pythondev only relevant on Linux or OSx.')
 
         os_props = get_os_props()
         self.distro = os_distro or os_props[0].lower()
@@ -333,9 +333,9 @@ class CloudifyInstaller():
         If an offline installation fails (for instance, not all wheels were
         found), an online installation process will commence.
         """
-        lgr.debug('Identified Platform: {0}'.format(PLATFORM))
-        lgr.debug('Identified Distribution: {0}'.format(self.distro))
-        lgr.debug('Identified Release: {0}'.format(self.release))
+        logger.debug('Identified Platform: {0}'.format(PLATFORM))
+        logger.debug('Identified Distribution: {0}'.format(self.distro))
+        logger.debug('Identified Release: {0}'.format(self.release))
 
         module = self.source or 'cloudify'
 
@@ -375,9 +375,9 @@ class CloudifyInstaller():
                            requirement_files=self.withrequirements,
                            upgrade=self.upgrade)
         elif os.path.isdir(self.wheels_path):
-            lgr.info('Wheels directory found: "{0}". '
-                     'Attemping offline installation...'.format(
-                         self.wheels_path))
+            logger.info('Wheels directory found: "{0}". '
+                        'Attemping offline installation...'.format(
+                            self.wheels_path))
             try:
                 install_module(module=module,
                                pre=True,
@@ -386,7 +386,7 @@ class CloudifyInstaller():
                                requirement_files=self.withrequirements,
                                upgrade=self.upgrade)
             except Exception as ex:
-                lgr.warning('Offline installation failed ({0}).'.format(
+                logger.warning('Offline installation failed ({0}).'.format(
                     str(ex)))
                 install_module(module=module,
                                version=self.version,
@@ -399,8 +399,8 @@ class CloudifyInstaller():
             activate_command = \
                 '{0}.bat'.format(activate_path) if IS_WIN \
                 else 'source {0}'.format(activate_path)
-            lgr.info('You can now run: "{0}" to activate '
-                     'the Virtualenv.'.format(activate_command))
+            logger.info('You can now run: "{0}" to activate '
+                        'the Virtualenv.'.format(activate_command))
 
     @staticmethod
     def find_virtualenv():
@@ -412,10 +412,10 @@ class CloudifyInstaller():
 
     def install_virtualenv(self):
         if not self.find_virtualenv():
-            lgr.info('Installing virtualenv...')
+            logger.info('Installing virtualenv...')
             install_module('virtualenv')
         else:
-            lgr.info('virtualenv is already installed in the path.')
+            logger.info('virtualenv is already installed in the path.')
 
     @staticmethod
     def find_pip():
@@ -426,7 +426,7 @@ class CloudifyInstaller():
             return False
 
     def install_pip(self):
-        lgr.info('Installing pip...')
+        logger.info('Installing pip...')
         if not self.find_pip():
             try:
                 tempdir = tempfile.mkdtemp()
@@ -443,7 +443,7 @@ class CloudifyInstaller():
             finally:
                 shutil.rmtree(tempdir)
         else:
-            lgr.info('pip is already installed in the path.')
+            logger.info('pip is already installed in the path.')
 
     @staticmethod
     def _get_default_requirement_files(source):
@@ -457,13 +457,13 @@ class CloudifyInstaller():
             try:
                 download_file(source, archive)
             except Exception as ex:
-                lgr.error('Could not download {0} ({1})'.format(
+                logger.error('Could not download {0} ({1})'.format(
                     source, str(ex)))
                 sys.exit(1)
             try:
                 untar_requirement_files(archive, tempdir)
             except Exception as ex:
-                lgr.error('Could not extract {0} ({1})'.format(
+                logger.error('Could not extract {0} ({1})'.format(
                     archive, str(ex)))
                 sys.exit(1)
             finally:
@@ -480,7 +480,7 @@ class CloudifyInstaller():
 
         This will try to match a command for your platform and distribution.
         """
-        lgr.info('Installing python-dev...')
+        logger.info('Installing python-dev...')
         if distro in ('ubuntu', 'debian'):
             cmd = 'apt-get install -y gcc python-dev'
         elif distro in ('centos', 'redhat', 'fedora'):
@@ -490,7 +490,7 @@ class CloudifyInstaller():
             # It's already supplied with Python.
             cmd = 'pacman -S gcc --noconfirm'
         elif IS_DARWIN:
-            lgr.info('python-dev package not required on Darwin.')
+            logger.info('python-dev package not required on Darwin.')
             return
         else:
             sys.exit('python-dev package installation not supported '
@@ -508,7 +508,7 @@ class CloudifyInstaller():
         # check 32/64bit to choose the correct PyCrypto installation
         is_pyx32 = True if struct.calcsize("P") == 4 else False
 
-        lgr.info('Installing PyCrypto {0}bit...'.format(
+        logger.info('Installing PyCrypto {0}bit...'.format(
             '32' if is_pyx32 else '64'))
         # easy install is used instead of pip as pip doesn't handle windows
         # executables.
@@ -535,11 +535,11 @@ def check_cloudify_installed(virtualenv_path=None):
 
 def handle_upgrade(upgrade=False, virtualenv=''):
     if check_cloudify_installed(virtualenv):
-        lgr.info('Cloudify is already installed in the path.')
+        logger.info('Cloudify is already installed in the path.')
         if upgrade:
-            lgr.info('Upgrading...')
+            logger.info('Upgrading...')
         else:
-            lgr.error('Use the --upgrade flag to upgrade.')
+            logger.error('Use the --upgrade flag to upgrade.')
             sys.exit(1)
 
 
@@ -615,17 +615,17 @@ def parse_args(args=None):
     return parser.parse_args(args)
 
 
-lgr = init_logger(__file__)
+logger = init_logger(__file__)
 
 
 if __name__ == '__main__':
     args = parse_args()
     if args.quiet:
-        lgr.setLevel(logging.ERROR)
+        logger.setLevel(logging.ERROR)
     elif args.verbose:
-        lgr.setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
     else:
-        lgr.setLevel(logging.INFO)
+        logger.setLevel(logging.INFO)
     handle_upgrade(args.upgrade, args.virtualenv)
 
     xargs = ['quiet', 'verbose']
