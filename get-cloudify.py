@@ -117,7 +117,7 @@ PYCR32_URL = 'http://repository.cloudifysource.org/org/cloudify3/components/pycr
 PLATFORM = sys.platform
 IS_WIN = (PLATFORM == 'win32')
 IS_DARWIN = (PLATFORM == 'darwin')
-IS_LINUX = (PLATFORM == 'linux2')
+IS_LINUX = (PLATFORM.startswith('linux'))
 
 PROCESS_POLLING_INTERVAL = 0.1
 
