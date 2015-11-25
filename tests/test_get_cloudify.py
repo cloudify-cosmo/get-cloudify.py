@@ -201,53 +201,53 @@ class TestArgParser(testtools.TestCase):
     def test_args_parser_linux(self):
         self.get_cloudify.IS_LINUX = True
         self.get_cloudify.IS_WIN = False
-        args = self.get_cloudify.parse_args([])
-        self.assertEqual(args.pythonpath, 'python',
+        args, _ = self.get_cloudify.parse_args([])
+        self.assertEqual(args['python_path'], 'python',
                          'wrong default python path {} set for linux'
-                         .format(args.pythonpath))
-        self.assertFalse(hasattr(args, 'installpycrypto'))
-        self.assertTrue(hasattr(args, 'installpythondev'))
+                         .format(args['python_path']))
+        self.assertNotIn('install_pycrypto', args)
+        self.assertIn('install_pythondev', args)
 
     def test_args_parser_windows(self):
         self.get_cloudify.IS_LINUX = False
         self.get_cloudify.IS_WIN = True
-        args = self.get_cloudify.parse_args([])
-        self.assertEqual(args.pythonpath, 'c:/python27/python.exe',
+        args, _ = self.get_cloudify.parse_args([])
+        self.assertEqual(args['python_path'], 'c:/python27/python.exe',
                          'wrong default python path {} set for win32'
-                         .format(args.pythonpath))
-        self.assertTrue(hasattr(args, 'installpycrypto'))
-        self.assertFalse(hasattr(args, 'installpythondev'))
+                         .format(args['pythonpath']))
+        self.assertIn('install_pycrypto', args)
+        self.assertNotIn('install_pythondev', args)
 
     def test_default_args(self):
-        args = self.get_cloudify.parse_args([])
-        self.assertFalse(args.force)
-        self.assertFalse(args.forceonline)
-        self.assertFalse(args.installpip)
-        self.assertFalse(args.installvirtualenv)
-        self.assertFalse(args.pre)
-        self.assertFalse(args.quiet)
-        self.assertFalse(args.verbose)
-        self.assertIsNone(args.version)
-        self.assertIsNone(args.virtualenv)
-        self.assertEqual(args.wheelspath, 'wheelhouse')
+        args, _ = self.get_cloudify.parse_args([])
+        self.assertFalse(args['force'])
+        self.assertFalse(args['forceonline'])
+        self.assertFalse(args['installpip'])
+        self.assertFalse(args['installvirtualenv'])
+        self.assertFalse(args['pre'])
+        self.assertFalse(args['quiet'])
+        self.assertFalse(args['verbose'])
+        self.assertIsNone(args['version'])
+        self.assertIsNone(args['virtualenv'])
+        self.assertEqual(args['wheels_path'], 'wheelhouse')
 
     def test_args_chosen(self):
         self.get_cloudify.IS_LINUX = True
-        set_args = self.get_cloudify.parse_args(['-f',
-                                                 '--forceonline',
-                                                 '--installpip',
-                                                 '--virtualenv=venv_path',
-                                                 '--quiet',
-                                                 '--version=3.2',
-                                                 '--installpip',
-                                                 '--installpythondev'])
+        set_args, _ = self.get_cloudify.parse_args(['-f',
+                                                    '--forceonline',
+                                                    '--installpip',
+                                                    '--virtualenv=venv_path',
+                                                    '--quiet',
+                                                    '--version=3.2',
+                                                    '--installpip',
+                                                    '--installpythondev'])
 
-        self.assertTrue(set_args.force)
-        self.assertTrue(set_args.forceonline)
-        self.assertTrue(set_args.installpip)
-        self.assertTrue(set_args.quiet)
-        self.assertEqual(set_args.version, '3.2')
-        self.assertEqual(set_args.virtualenv, 'venv_path')
+        self.assertTrue(set_args['force'])
+        self.assertTrue(set_args['force_online'])
+        self.assertTrue(set_args['install_pip'])
+        self.assertTrue(set_args['quiet'])
+        self.assertEqual(set_args['version'], '3.2')
+        self.assertEqual(set_args['virtualenv'], 'venv_path')
 
     def test_mutually_exclude_groups(self):
         # # test with args that do not go together
@@ -261,7 +261,7 @@ class TestArgParser(testtools.TestCase):
 
         ex = self.assertRaises(
             SystemExit, self.get_cloudify.parse_args,
-            ['--wheelspath', '--forceonline'])
+            ['--wheels_path', '--force_online'])
         self.assertEqual(2, ex.message)
 
 
