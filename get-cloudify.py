@@ -23,7 +23,7 @@
 # pacman -Syu --noconfirm
 # pacman-db-upgrade
 # pacman -S python2 --noconfirm
-# curl -O -L http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/get-cloudify.py && python2 get-cloudify.py -f --pythonpath=python2 # NOQA
+# curl -O -L http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/get-cloudify.py && python2 get-cloudify.py -f --python-path=python2 # NOQA
 
 # Install Cloudify on CentOS/RHEL
 # yum -y update
@@ -33,7 +33,7 @@
 # tar -xzvf Python-2.7.6.tgz
 # cd Python-2.7.6
 # ./configure --prefix=/usr/local && make && make altinstall
-# curl -O -L http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/get-cloudify.py && python2.7 get-cloudify.py --pythonpath=python2.7 -f # NOQA
+# curl -O -L http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/get-cloudify.py && python2.7 get-cloudify.py --python-path=python2.7 -f # NOQA
 
 # Install Cloudify on Windows (Python 32/64bit)
 # Install Python 2.7.x 32/64bit from https://www.python.org/downloads/release/python-279/  # NOQA
@@ -559,9 +559,9 @@ def handle_upgrade(upgrade=False, virtualenv=''):
 def parse_args(args=None):
     class VerifySource(argparse.Action):
         def __call__(self, parser, args, values, option_string=None):
-            if not args.source:
-                parser.error(
-                    '--source is required when calling --with-requirements.')
+            if not args.source and not args.use_branch:
+                parser.error('--source or --use-branch is required when '
+                             'calling with --with-requirements.')
             setattr(args, self.dest, values)
 
     parser = argparse.ArgumentParser(
@@ -573,6 +573,8 @@ def parse_args(args=None):
         python_path_default = 'c:/python27/python.exe'
     else:
         python_path_default = 'python'
+    # Used it --use-branch is specified
+    repo_url = 'https://github.com/{user}/cloudify-cli/archive/{branch}.tar.gz'
 
     verbosity_group = parser.add_mutually_exclusive_group()
     verbosity_group.add_argument(
@@ -601,6 +603,14 @@ def parse_args(args=None):
         '-s', '--source',
         type=str,
         help='Install from the provided URL or local path.',
+    )
+    version_group.add_argument(
+        '-b', '--use-branch',
+        type=str,
+        help='Branch to use. Specified as either branch or user/branch. '
+             'By default the user will be cloudify-cosmo. '
+             'You will likely want --with-requirements when using this. '
+             'This will result in installing from: {0}'.format(repo_url)
     )
 
     online_group = parser.add_mutually_exclusive_group()
@@ -760,6 +770,26 @@ def parse_args(args=None):
             )
             # Now make sure we use the value that was set
             parsed_args[new_value] = parsed_args[deprecated]
+
+    # Process branch selection, if applicable
+    if parsed_args['use_branch']:
+        user = 'cloudify-cosmo'
+        branch = parsed_args['use_branch']
+        if '/' in branch:
+            if len(branch.split('/')) > 2:
+                parser.error('--use-branch should be specified either as '
+                             '<branch> or as <user>/<branch>. '
+                             'Too many "/" found in arguments.')
+            else:
+                user, branch = parsed_args['use_branch'].split('/')
+
+        # Form source string from user and branch
+        url = repo_url.format(user=user, branch=branch)
+
+        parsed_args['source'] = url
+
+    # use_branch should be discarded now as it is just used to set source
+    parsed_args.pop('use_branch')
 
     return parsed_args, deprecations.keys()
 
