@@ -96,9 +96,9 @@ It's important to note that even if you're running as sudo, if you're
 installing in a declared virtualenv, the script will drop the root privileges
 since you probably declared a virtualenv so that it can be installed using
 the current user.
-Also note, that if you're running with sudo and you have an active virtualenv,
-much like any other python script, the installation will occur in the system
-python.
+Also note, that if you're running using sudo and wish to use a virtualenv you
+must specify it with the --virtualenv argument as simply activating the env
+will not cause it to be used while sudo is in use.
 
 By default, the script assumes that the Python executable is in the
 path and is called 'python' on Linux and 'c:\python27\python.exe on Windows.
