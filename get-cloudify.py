@@ -357,15 +357,15 @@ class CloudifyInstaller():
         module = self.source or 'cloudify'
 
         if self.force or self.install_pip:
-            self.install_pip()
+            self.get_pip()
 
         if self.virtualenv:
             if self.force or self.install_virtualenv:
-                self.install_virtualenv()
+                self.get_virtualenv()
             env_bin_path = _get_env_bin_path(self.virtualenv)
 
         if IS_LINUX and (self.force or self.install_pythondev):
-            self.install_pythondev(self.distro)
+            self.get_pythondev(self.distro)
         if (IS_VIRTUALENV or self.virtualenv) and not IS_WIN:
             # drop root permissions so that installation is done using the
             # current user.
@@ -376,7 +376,7 @@ class CloudifyInstaller():
                 make_virtualenv(self.virtualenv, self.python_path)
 
         if IS_WIN and (self.force or self.install_pycrypto):
-            self.install_pycrypto(self.virtualenv)
+            self.get_pycrypto(self.virtualenv)
 
         # if with_requirements is not provided, this will be False.
         # if it's provided without a value, it will be a list.
@@ -427,7 +427,7 @@ class CloudifyInstaller():
         except:
             return False
 
-    def install_virtualenv(self):
+    def get_virtualenv(self):
         if not self.find_virtualenv():
             logger.info('Installing virtualenv...')
             install_module('virtualenv')
@@ -442,7 +442,7 @@ class CloudifyInstaller():
         except:
             return False
 
-    def install_pip(self):
+    def get_pip(self):
         logger.info('Installing pip...')
         if not self.find_pip():
             try:
@@ -492,7 +492,7 @@ class CloudifyInstaller():
             return [os.path.join(req_dir, f) for f in REQUIREMENT_FILE_NAMES
                     if os.path.isfile(os.path.join(req_dir, f))]
 
-    def install_pythondev(self, distro):
+    def get_pythondev(self, distro):
         """Installs python-dev and gcc
 
         This will try to match a command for your platform and distribution.
@@ -515,7 +515,7 @@ class CloudifyInstaller():
         run(cmd)
 
     # Windows only
-    def install_pycrypto(self, virtualenv_path):
+    def get_pycrypto(self, virtualenv_path):
         """This will install PyCrypto to be used by Fabric.
         PyCrypto isn't compiled with Fabric on Windows by default thus it needs
         to be provided explicitly.
