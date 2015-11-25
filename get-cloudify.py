@@ -342,7 +342,7 @@ class CloudifyInstaller():
 
         --force argument forces installation of all prerequisites.
         If a wheels directory is found, it will be used for offline
-        installation unless explicitly prevented using the --forceonline flag.
+        installation unless explicitly prevented using the --force-online flag.
         If an offline installation fails (for instance, not all wheels were
         found), an online installation process will commence.
         """
