@@ -791,6 +791,13 @@ def parse_args(args=None):
     # use_branch should be discarded now as it is just used to set source
     parsed_args.pop('use_branch')
 
+    if parsed_args['source'] and not parsed_args['with_requirements']:
+        logger.warning(
+            'A source URL or branch was specified, but '
+            '--with-requirements was omitted. You may need to retry using '
+            '--with-requirements if the installation fails.'
+        )
+
     return parsed_args, deprecations.keys()
 
 
