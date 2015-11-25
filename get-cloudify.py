@@ -171,6 +171,10 @@ def run(cmd, suppress_errors=False):
     return proc
 
 
+def _is_root():
+    return os.getuid() == 0
+
+
 def drop_root_privileges():
     """Drop root privileges
 
@@ -180,7 +184,7 @@ def drop_root_privileges():
     install in the system Python or using a Sudoer.
     """
     # maybe we're not root
-    if not os.getuid() == 0:
+    if not _is_root():
         return
 
     logger.info('Dropping root permissions...')
