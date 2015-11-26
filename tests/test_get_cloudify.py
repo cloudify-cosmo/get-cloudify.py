@@ -81,55 +81,171 @@ class CliBuilderUnitTests(testtools.TestCase):
         self.assertIsNot(proc.returncode, 0, 'command \'{}\' execution was '
                                              'expected to fail'.format(cmd))
 
-    def test_install_pip_failed_download(self):
+    @mock.patch('get-cloudify.sys.exit')
+    @mock.patch('get-cloudify.logger')
+    def test_exit_unsupported_os(self,
+                                 mock_log,
+                                 mock_exit):
+        self.get_cloudify.exit(
+            message='Unsupported OS',
+            status='unsupported_platform',
+        )
+
+        mock_log.error.assert_called_once_with('Unsupported OS')
+        mock_exit.assert_called_once_with(200)
+
+    @mock.patch('get-cloudify.sys.exit')
+    @mock.patch('get-cloudify.logger')
+    def test_exit_venv_create_fail(self,
+                                   mock_log,
+                                   mock_exit):
+        self.get_cloudify.exit(
+            message='Venv creation failure',
+            status='virtualenv_creation_failure',
+        )
+
+        mock_log.error.assert_called_once_with('Venv creation failure')
+        mock_exit.assert_called_once_with(210)
+
+    @mock.patch('get-cloudify.sys.exit')
+    @mock.patch('get-cloudify.logger')
+    def test_exit_dep_download_fail(self,
+                                    mock_log,
+                                    mock_exit):
+        self.get_cloudify.exit(
+            message='Download failure',
+            status='dependency_download_failure',
+        )
+
+        mock_log.error.assert_called_once_with('Download failure')
+        mock_exit.assert_called_once_with(220)
+
+    @mock.patch('get-cloudify.sys.exit')
+    @mock.patch('get-cloudify.logger')
+    def test_exit_dep_extract_fail(self,
+                                   mock_log,
+                                   mock_exit):
+        self.get_cloudify.exit(
+            message='Extraction failure',
+            status='dependency_extraction_failure',
+        )
+
+        mock_log.error.assert_called_once_with('Extraction failure')
+        mock_exit.assert_called_once_with(221)
+
+    @mock.patch('get-cloudify.sys.exit')
+    @mock.patch('get-cloudify.logger')
+    def test_exit_dep_install_fail(self,
+                                 mock_log,
+                                 mock_exit):
+        self.get_cloudify.exit(
+            message='Install failure',
+            status='dependency_installation_failure',
+        )
+
+        mock_log.error.assert_called_once_with('Install failure')
+        mock_exit.assert_called_once_with(222)
+
+    @mock.patch('get-cloudify.sys.exit')
+    @mock.patch('get-cloudify.logger')
+    def test_exit_dep_unsupported_distro(self,
+                                         mock_log,
+                                         mock_exit):
+        self.get_cloudify.exit(
+            message='Wrong distro',
+            status='dependency_unsupported_on_distribution',
+        )
+
+        mock_log.error.assert_called_once_with('Wrong distro')
+        mock_exit.assert_called_once_with(223)
+
+    @mock.patch('get-cloudify.sys.exit')
+    @mock.patch('get-cloudify.logger')
+    def test_exit_cloudify_already_uninstalled(self,
+                                               mock_log,
+                                               mock_exit):
+        self.get_cloudify.exit(
+            message='Cloudify already here',
+            status='cloudify_already_installed',
+        )
+
+        mock_log.error.assert_called_once_with('Cloudify already here')
+        mock_exit.assert_called_once_with(230)
+
+    @mock.patch('get-cloudify.exit',
+                side_effect=SystemExit)
+    @mock.patch('get-cloudify.download_file',
+                side_effect=StandardError('Boom!'))
+    @mock.patch('get-cloudify.CloudifyInstaller.find_pip',
+                return_value=False)
+    def test_install_pip_failed_download(self,
+                                         mock_find_pip,
+                                         mock_download,
+                                         mock_exit):
         installer = self.get_cloudify.CloudifyInstaller()
 
-        mock_boom = mock.MagicMock()
-        mock_boom.side_effect = StandardError('Boom!')
-        self.get_cloudify.download_file = mock_boom
+        self.assertRaises(
+            SystemExit,
+            installer.get_pip,
+        )
+        mock_exit.assert_called_once_with(
+            message='Failed pip download from {0}. (Boom!)'.format(
+                get_cloudify.PIP_URL,
+            ),
+            status='dependency_download_failure',
+        )
 
-        mock_false = mock.MagicMock()
-
-        def side_effect():
-            return False
-        mock_false.side_effect = side_effect
-        installer.find_pip = mock_false
-
-        ex = self.assertRaises(SystemExit, installer.get_pip)
-        self.assertEqual(
-            'Failed downloading pip from {0}. (Boom!)'.format(
-                self.get_cloudify.PIP_URL), ex.message)
-
-    def test_install_pip_fail(self):
-        self.get_cloudify.download_file = mock.MagicMock(return_value=None)
-
+    @mock.patch('get-cloudify.exit',
+                side_effect=SystemExit)
+    @mock.patch('get-cloudify.download_file',
+                return_value=None)
+    @mock.patch('get-cloudify.CloudifyInstaller.find_pip',
+                return_value=False)
+    def test_install_pip_fail(self,
+                              mock_find_pip,
+                              mock_download,
+                              mock_exit):
         python_path = 'non_existing_path'
         installer = self.get_cloudify.CloudifyInstaller(
             python_path=python_path,
         )
 
-        mock_false = mock.MagicMock()
+        self.assertRaises(
+            SystemExit,
+            installer.get_pip,
+        )
+        mock_exit.assert_called_once_with(
+            message='Could not install pip',
+            status='dependency_installation_failure',
+        )
 
-        def side_effect():
-            return False
-        mock_false.side_effect = side_effect
-        installer.find_pip = mock_false
+    @mock.patch('get-cloudify.exit',
+                side_effect=SystemExit)
+    def test_make_virtualenv_fail(self, mock_exit):
+        self.assertRaises(
+            SystemExit,
+            self.get_cloudify.make_virtualenv,
+            '/path/to/dir',
+            'non_existing_path',
+        )
 
-        ex = self.assertRaises(SystemExit, installer.get_pip)
-        self.assertIn('Could not install pip', ex.message)
+        mock_exit.assert_called_once_with(
+            message='Could not create virtualenv: /path/to/dir',
+            status='virtualenv_creation_failure',
+        )
 
-    def test_make_virtualenv_fail(self):
-        ex = self.assertRaises(
-            SystemExit, self.get_cloudify.make_virtualenv,
-            '/path/to/dir', 'non_existing_path')
-        self.assertEqual(
-            'Could not create virtualenv: /path/to/dir', ex.message)
-
-    def test_install_non_existing_module(self):
-        ex = self.assertRaises(
-            SystemExit, self.get_cloudify.install_module, 'nonexisting_module')
-        self.assertEqual(
-            'Could not install module: nonexisting_module.', ex.message)
+    @mock.patch('get-cloudify.exit',
+                side_effect=SystemExit)
+    def test_install_non_existing_module(self, mock_exit):
+        self.assertRaises(
+            SystemExit,
+            self.get_cloudify.install_module,
+            'nonexisting_module',
+        )
+        mock_exit.assert_called_once_with(
+            message='Could not install module: nonexisting_module.',
+            status='dependency_install_failure',
+        )
 
     def test_get_os_props(self):
         distro = self.get_cloudify.get_os_props()[0]
