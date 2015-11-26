@@ -244,7 +244,7 @@ class CliBuilderUnitTests(testtools.TestCase):
         )
         mock_exit.assert_called_once_with(
             message='Could not install package: nonexisting_module.',
-            status='dependency_install_failure',
+            status='dependency_installation_failure',
         )
 
     def test_get_os_props(self):
