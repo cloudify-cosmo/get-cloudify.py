@@ -320,9 +320,6 @@ class TestArgParser(testtools.TestCase):
         self.get_cloudify.IS_LINUX = True
         self.get_cloudify.IS_WIN = False
         args, _ = self.get_cloudify.parse_args([])
-        self.assertEqual(args['python_path'], 'python',
-                         'wrong default python path {} set for linux'
-                         .format(args['python_path']))
         self.assertNotIn('install_pycrypto', args)
         self.assertIn('install_pythondev', args)
 
@@ -330,9 +327,6 @@ class TestArgParser(testtools.TestCase):
         self.get_cloudify.IS_LINUX = False
         self.get_cloudify.IS_WIN = True
         args, _ = self.get_cloudify.parse_args([])
-        self.assertEqual(args['python_path'], 'c:/python27/python.exe',
-                         'wrong default python path {} set for win32'
-                         .format(args['pythonpath']))
         self.assertIn('install_pycrypto', args)
         self.assertNotIn('install_pythondev', args)
 
