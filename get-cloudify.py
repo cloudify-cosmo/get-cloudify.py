@@ -219,7 +219,7 @@ def make_virtualenv(virtualenv_dir, python_path):
 
 
 def install_package(package, version=False, pre=False, virtualenv_path=False,
-                    wheelspath=False, requirement_files=None, upgrade=False,
+                    wheels_path=False, requirement_files=None, upgrade=False,
                     pip_args=()):
     """This will install a Python package.
 
@@ -227,7 +227,7 @@ def install_package(package, version=False, pre=False, virtualenv_path=False,
     Can specify a prerelease.
     Can specify a virtualenv to install in.
     Can specify a list of paths or urls to requirement txt files.
-    Can specify a local wheelspath to use for offline installation.
+    Can specify a local wheels path to use for offline installation.
     Can request an upgrade.
     """
     logger.info('Installing {0}...'.format(package))
@@ -241,9 +241,9 @@ def install_package(package, version=False, pre=False, virtualenv_path=False,
             pip_cmd.extend(['-r', req_file])
     package = '{0}=={1}'.format(package, version) if version else package
     pip_cmd.append(package)
-    if wheelspath:
+    if wheels_path:
         pip_cmd.extend(
-            ['--use-wheel', '--no-index', '--find-links', wheelspath])
+            ['--use-wheel', '--no-index', '--find-links', wheels_path])
     if pre:
         pip_cmd.append('--pre')
     if upgrade:
@@ -424,7 +424,7 @@ class CloudifyInstaller():
                             pre=True,
                             pip_args=self.pip_args,
                             virtualenv_path=self.virtualenv,
-                            wheelspath=self.wheels_path,
+                            wheels_path=self.wheels_path,
                             requirement_files=self.with_requirements,
                             upgrade=self.upgrade)
         if self.virtualenv:
