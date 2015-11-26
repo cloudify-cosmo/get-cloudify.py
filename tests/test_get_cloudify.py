@@ -239,11 +239,11 @@ class CliBuilderUnitTests(testtools.TestCase):
     def test_install_non_existing_module(self, mock_exit):
         self.assertRaises(
             SystemExit,
-            self.get_cloudify.install_module,
+            self.get_cloudify.install_package,
             'nonexisting_module',
         )
         mock_exit.assert_called_once_with(
-            message='Could not install module: nonexisting_module.',
+            message='Could not install package: nonexisting_module.',
             status='dependency_install_failure',
         )
 
