@@ -218,9 +218,9 @@ def make_virtualenv(virtualenv_dir, python_path):
         )
 
 
-def install_module(module, version=False, pre=False, virtualenv_path=False,
-                   wheelspath=False, requirement_files=None, upgrade=False):
-    """This will install a Python module.
+def install_package(package, version=False, pre=False, virtualenv_path=False,
+                    wheelspath=False, requirement_files=None, upgrade=False):
+    """This will install a Python package.
 
     Can specify a specific version.
     Can specify a prerelease.
@@ -229,7 +229,7 @@ def install_module(module, version=False, pre=False, virtualenv_path=False,
     Can specify a local wheelspath to use for offline installation.
     Can request an upgrade.
     """
-    logger.info('Installing {0}...'.format(module))
+    logger.info('Installing {0}...'.format(package))
     pip_cmd = ['pip', 'install']
     if virtualenv_path:
         pip_cmd[0] = os.path.join(
@@ -237,8 +237,8 @@ def install_module(module, version=False, pre=False, virtualenv_path=False,
     if requirement_files:
         for req_file in requirement_files:
             pip_cmd.extend(['-r', req_file])
-    module = '{0}=={1}'.format(module, version) if version else module
-    pip_cmd.append(module)
+    package = '{0}=={1}'.format(package, version) if version else package
+    pip_cmd.append(package)
     if wheelspath:
         pip_cmd.extend(
             ['--use-wheel', '--no-index', '--find-links', wheelspath])
@@ -253,7 +253,7 @@ def install_module(module, version=False, pre=False, virtualenv_path=False,
     if not result.returncode == 0:
         logger.error(result.aggr_stdout)
         exit(
-            message='Could not install module: {0}.'.format(module),
+            message='Could not install package: {0}.'.format(package),
             status='dependency_installation_failure',
         )
 
@@ -372,7 +372,7 @@ class CloudifyInstaller():
         logger.debug('Identified Distribution: {0}'.format(self.distro))
         logger.debug('Identified Release: {0}'.format(self.release))
 
-        module = self.source or 'cloudify'
+        package = self.source or 'cloudify'
 
         if self.force or self.install_pip:
             self.get_pip()
@@ -403,32 +403,32 @@ class CloudifyInstaller():
                 or self._get_default_requirement_files(self.source)
 
         if self.force_online or not os.path.isdir(self.wheels_path):
-            install_module(module=module,
-                           version=self.version,
-                           pre=self.pre,
-                           virtualenv_path=self.virtualenv,
-                           requirement_files=self.with_requirements,
-                           upgrade=self.upgrade)
+            install_package(package=package,
+                            version=self.version,
+                            pre=self.pre,
+                            virtualenv_path=self.virtualenv,
+                            requirement_files=self.with_requirements,
+                            upgrade=self.upgrade)
         elif os.path.isdir(self.wheels_path):
             logger.info('Wheels directory found: "{0}". '
                         'Attemping offline installation...'.format(
                             self.wheels_path))
             try:
-                install_module(module=module,
-                               pre=True,
-                               virtualenv_path=self.virtualenv,
-                               wheelspath=self.wheels_path,
-                               requirement_files=self.with_requirements,
-                               upgrade=self.upgrade)
+                install_package(package=package,
+                                pre=True,
+                                virtualenv_path=self.virtualenv,
+                                wheelspath=self.wheels_path,
+                                requirement_files=self.with_requirements,
+                                upgrade=self.upgrade)
             except Exception as ex:
                 logger.warning('Offline installation failed ({0}).'.format(
                     str(ex)))
-                install_module(module=module,
-                               version=self.version,
-                               pre=self.pre,
-                               virtualenv_path=self.virtualenv,
-                               requirement_files=self.with_requirements,
-                               upgrade=self.upgrade)
+                install_package(package=package,
+                                version=self.version,
+                                pre=self.pre,
+                                virtualenv_path=self.virtualenv,
+                                requirement_files=self.with_requirements,
+                                upgrade=self.upgrade)
         if self.virtualenv:
             activate_path = os.path.join(env_bin_path, 'activate')
             activate_command = \
@@ -448,7 +448,7 @@ class CloudifyInstaller():
     def get_virtualenv(self):
         if not self.find_virtualenv():
             logger.info('Installing virtualenv...')
-            install_module('virtualenv')
+            install_package('virtualenv')
         else:
             logger.info('virtualenv is already installed in the path.')
 
