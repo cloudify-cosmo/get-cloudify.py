@@ -219,7 +219,8 @@ def make_virtualenv(virtualenv_dir, python_path):
 
 
 def install_package(package, version=False, pre=False, virtualenv_path=False,
-                    wheelspath=False, requirement_files=None, upgrade=False):
+                    wheelspath=False, requirement_files=None, upgrade=False,
+                    pip_args=()):
     """This will install a Python package.
 
     Can specify a specific version.
@@ -231,6 +232,7 @@ def install_package(package, version=False, pre=False, virtualenv_path=False,
     """
     logger.info('Installing {0}...'.format(package))
     pip_cmd = ['pip', 'install']
+    pip_cmd.extend(pip_args)
     if virtualenv_path:
         pip_cmd[0] = os.path.join(
             _get_env_bin_path(virtualenv_path), pip_cmd[0])
@@ -325,6 +327,7 @@ class CloudifyInstaller():
                  pre=False,
                  source='',
                  with_requirements='',
+                 pip_args=(),
                  force_online=False,
                  wheels_path='wheelhouse',
                  python_path=sys.executable,
@@ -341,6 +344,7 @@ class CloudifyInstaller():
         self.pre = pre
         self.source = source
         self.with_requirements = with_requirements
+        self.pip_args = pip_args
         self.force_online = force_online
         self.wheels_path = wheels_path
         self.python_path = python_path
@@ -408,6 +412,7 @@ class CloudifyInstaller():
             install_package(package=package,
                             version=self.version,
                             pre=self.pre,
+                            pip_args=self.pip_args,
                             virtualenv_path=self.virtualenv,
                             requirement_files=self.with_requirements,
                             upgrade=self.upgrade)
@@ -418,6 +423,7 @@ class CloudifyInstaller():
             try:
                 install_package(package=package,
                                 pre=True,
+                                pip_args=self.pip_args,
                                 virtualenv_path=self.virtualenv,
                                 wheelspath=self.wheels_path,
                                 requirement_files=self.with_requirements,
@@ -428,6 +434,7 @@ class CloudifyInstaller():
                 install_package(package=package,
                                 version=self.version,
                                 pre=self.pre,
+                                pip_args=self.pip_args,
                                 virtualenv_path=self.virtualenv,
                                 requirement_files=self.with_requirements,
                                 upgrade=self.upgrade)
@@ -450,7 +457,7 @@ class CloudifyInstaller():
     def get_virtualenv(self):
         if not self.find_virtualenv():
             logger.info('Installing virtualenv...')
-            install_package('virtualenv')
+            install_package('virtualenv', pip_args=self.pip_args)
         else:
             logger.info('virtualenv is already installed in the path.')
 
@@ -737,6 +744,14 @@ def parse_args(args=None):
         action='store_true',
         help='Upgrades Cloudify if already installed.',
     )
+    parser.add_argument(
+        '-p', '--pip-arg',
+        type=str,
+        nargs='*',
+        help='Additional arguments to supply to pip. These will be used for '
+             'the duration of this script but will not apply when, e.g. '
+             'bootstrapping cloudify.',
+    )
 
     # OS dependent arguments
     if IS_LINUX:
@@ -830,6 +845,9 @@ def parse_args(args=None):
 
     # use_branch should be discarded now as it is just used to set source
     parsed_args.pop('use_branch')
+
+    # Renaming pip_arg for clarity elsewhere
+    parsed_args['pip_args'] = parsed_args.pop('pip_arg')
 
     if parsed_args['source'] and not parsed_args['with_requirements']:
         logger.warning(
