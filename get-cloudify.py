@@ -420,24 +420,13 @@ class CloudifyInstaller():
             logger.info('Wheels directory found: "{0}". '
                         'Attemping offline installation...'.format(
                             self.wheels_path))
-            try:
-                install_package(package=package,
-                                pre=True,
-                                pip_args=self.pip_args,
-                                virtualenv_path=self.virtualenv,
-                                wheelspath=self.wheels_path,
-                                requirement_files=self.with_requirements,
-                                upgrade=self.upgrade)
-            except Exception as ex:
-                logger.warning('Offline installation failed ({0}).'.format(
-                    str(ex)))
-                install_package(package=package,
-                                version=self.version,
-                                pre=self.pre,
-                                pip_args=self.pip_args,
-                                virtualenv_path=self.virtualenv,
-                                requirement_files=self.with_requirements,
-                                upgrade=self.upgrade)
+            install_package(package=package,
+                            pre=True,
+                            pip_args=self.pip_args,
+                            virtualenv_path=self.virtualenv,
+                            wheelspath=self.wheels_path,
+                            requirement_files=self.with_requirements,
+                            upgrade=self.upgrade)
         if self.virtualenv:
             activate_path = os.path.join(env_bin_path, 'activate')
             activate_command = \
