@@ -848,16 +848,13 @@ def parse_args(args=None):
     return parsed_args, deprecations.keys()
 
 
-logger = init_logger(__file__)
+def main():
+    if not (IS_LINUX or IS_DARWIN or IS_WIN):
+        exit(
+            message='Platform {0} not supported.'.format(PLATFORM),
+            status='unsupported_platform',
+        )
 
-if not (IS_LINUX or IS_DARWIN or IS_WIN):
-    exit(
-        message='Platform {0} not supported.'.format(PLATFORM),
-        status='unsupported_platform',
-    )
-
-
-if __name__ == '__main__':
     args, deprecated = parse_args()
     if args['quiet']:
         logger.setLevel(logging.ERROR)
@@ -873,3 +870,9 @@ if __name__ == '__main__':
             args.pop(arg)
     installer = CloudifyInstaller(**args)
     installer.execute()
+
+logger = init_logger(__file__)
+
+
+if __name__ == '__main__':
+    main()
