@@ -374,6 +374,8 @@ class CloudifyInstaller():
 
         package = self.source or 'cloudify'
 
+        self.handle_upgrade()
+
         if self.force or self.install_pip:
             self.get_pip()
 
@@ -566,35 +568,33 @@ class CloudifyInstaller():
             cmd = os.path.join(_get_env_bin_path(virtualenv_path), cmd)
         run(cmd)
 
+    def handle_upgrade(self):
+        if self.check_cloudify_installed():
+            logger.info('Cloudify is already installed in the path.')
+            if self.upgrade:
+                logger.info('Upgrading...')
+            else:
+                logger.warn('If your previous attempt to install failed, '
+                            'cloudify may be partially installed. You can '
+                            "'upgrade' to fix this.")
+                exit(
+                    message='Use the --upgrade flag to upgrade.',
+                    status='cloudify_already_installed',
+                )
 
-def check_cloudify_installed(virtualenv_path=None):
-    if virtualenv_path:
-        result = run(
-            os.path.join(_get_env_bin_path(virtualenv_path),
-                         'python -c "import cloudify"'),
-            suppress_errors=True)
-        return result.returncode == 0
-    else:
-        try:
-            import cloudify  # NOQA
-            return True
-        except ImportError:
-            return False
-
-
-def handle_upgrade(upgrade=False, virtualenv=''):
-    if check_cloudify_installed(virtualenv):
-        logger.info('Cloudify is already installed in the path.')
-        if upgrade:
-            logger.info('Upgrading...')
+    def check_cloudify_installed(self):
+        if self.virtualenv:
+            result = run(
+                os.path.join(_get_env_bin_path(self.virtualenv),
+                             'python -c "import cloudify"'),
+                suppress_errors=True)
+            return result.returncode == 0
         else:
-            logger.warn('If your previous attempt to install failed, '
-                        'cloudify may be partially installed. You can '
-                        "'upgrade' to fix this.")
-            exit(
-                message='Use the --upgrade flag to upgrade.',
-                status='cloudify_already_installed',
-            )
+            try:
+                import cloudify  # NOQA
+                return True
+            except ImportError:
+                return False
 
 
 def parse_args(args=None):
@@ -858,7 +858,6 @@ if __name__ == '__main__':
         logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
-    handle_upgrade(args['upgrade'], args['virtualenv'])
 
     excluded_args = ['quiet', 'verbose']
     excluded_args.extend(deprecated)
