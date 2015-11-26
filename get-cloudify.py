@@ -118,9 +118,10 @@ PYCR64_URL = '{repo}/pycrypto-2.6.win-amd64-py2.7.exe'.format(repo=repo)
 PYCR32_URL = '{repo}/pycrypto-2.6.win32-py2.7.exe'.format(repo=repo)
 
 PLATFORM = sys.platform
-IS_WIN = (PLATFORM == 'win32')
 IS_DARWIN = (PLATFORM == 'darwin')
 IS_LINUX = (PLATFORM.startswith('linux'))
+# Using os.name to allow cygwin to be detected as windows as well
+IS_WIN = (os.name == 'nt')
 
 PROCESS_POLLING_INTERVAL = 0.1
 
