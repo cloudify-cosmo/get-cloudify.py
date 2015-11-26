@@ -16,6 +16,7 @@
 import testtools
 import shutil
 import tempfile
+import mock
 import os
 import importlib
 import sys
@@ -33,6 +34,7 @@ class CliInstallTests(testtools.TestCase):
     def install_cloudify(args):
         installer = get_cloudify.CloudifyInstaller(**args)
         installer.execute()
+        return installer
 
     def setUp(self):
         super(CliInstallTests, self).setUp()
@@ -84,11 +86,14 @@ class CliInstallTests(testtools.TestCase):
 
         try:
             self.install_cloudify(install_args)
-            self.get_cloudify.handle_upgrade(**install_args)
+            # Repeat should succeed with upgrade flag set
+            self.install_cloudify(install_args)
         finally:
             shutil.rmtree(tempdir)
 
-    def test_cli_installed_and_no_upgrade(self):
+    @mock.patch('get-cloudify.exit',
+                side_effect=SystemExit)
+    def test_cli_installed_and_no_upgrade(self, mock_exit):
         tempdir = tempfile.mkdtemp()
         install_args = {
             'virtualenv': tempdir,
@@ -97,9 +102,15 @@ class CliInstallTests(testtools.TestCase):
 
         try:
             self.install_cloudify(install_args)
-            ex = self.assertRaises(
-                SystemExit, self.get_cloudify.handle_upgrade, **install_args)
-            self.assertEqual(1, ex.message)
+            self.assertRaises(
+                SystemExit,
+                self.install_cloudify,
+                install_args,
+            )
+            mock_exit.assert_called_once_with(
+                message='Use the --upgrade flag to upgrade.',
+                status='cloudify_already_installed',
+            )
         finally:
             shutil.rmtree(tempdir)
 

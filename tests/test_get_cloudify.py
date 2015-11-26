@@ -265,10 +265,12 @@ class CliBuilderUnitTests(testtools.TestCase):
 
     def test_check_cloudify_not_installed_in_venv(self):
         tmp_venv = tempfile.mkdtemp()
+        installer = self.get_cloudify.CloudifyInstaller(virtualenv=tmp_venv)
         try:
             self.get_cloudify.make_virtualenv(tmp_venv, 'python')
             self.assertFalse(
-                self.get_cloudify.check_cloudify_installed(tmp_venv))
+                installer.check_cloudify_installed()
+            )
         finally:
             shutil.rmtree(tmp_venv)
 
@@ -279,7 +281,8 @@ class CliBuilderUnitTests(testtools.TestCase):
             installer = get_cloudify.CloudifyInstaller(virtualenv=tmp_venv)
             installer.execute()
             self.assertTrue(
-                self.get_cloudify.check_cloudify_installed(tmp_venv))
+                installer.check_cloudify_installed()
+            )
         finally:
             shutil.rmtree(tmp_venv)
 
