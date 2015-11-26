@@ -23,7 +23,7 @@
 # pacman -Syu --noconfirm
 # pacman-db-upgrade
 # pacman -S python2 --noconfirm
-# curl -O -L http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/get-cloudify.py && python2 get-cloudify.py -f --python-path=python2 # NOQA
+# curl -O -L http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/get-cloudify.py && python2 get-cloudify.py -f # NOQA
 
 # Install Cloudify on CentOS/RHEL
 # yum -y update
@@ -33,7 +33,7 @@
 # tar -xzvf Python-2.7.6.tgz
 # cd Python-2.7.6
 # ./configure --prefix=/usr/local && make && make altinstall
-# curl -O -L http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/get-cloudify.py && python2.7 get-cloudify.py --python-path=python2.7 -f # NOQA
+# curl -O -L http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/get-cloudify.py && python2.7 get-cloudify.py -f # NOQA
 
 # Install Cloudify on Windows (Python 32/64bit)
 # Install Python 2.7.x 32/64bit from https://www.python.org/downloads/release/python-279/  # NOQA
@@ -100,9 +100,8 @@ Also note, that if you're running using sudo and wish to use a virtualenv you
 must specify it with the --virtualenv argument as simply activating the env
 will not cause it to be used while sudo is in use.
 
-By default, the script assumes that the Python executable is in the
-path and is called 'python' on Linux and 'c:\python27\python.exe on Windows.
-The Python path can be overriden by using the --python-path flag.
+The script will use the interpreter that the script was run with as the path,
+e.g. for creating virtualenvs, etc.
 
 Please refer to Cloudify's documentation at http://getcloudify.org for
 additional information.'''
@@ -328,7 +327,7 @@ class CloudifyInstaller():
                  with_requirements='',
                  force_online=False,
                  wheels_path='wheelhouse',
-                 python_path='python',
+                 python_path=sys.executable,
                  install_pip=False,
                  install_virtualenv=False,
                  install_pythondev=False,
@@ -611,10 +610,6 @@ def parse_args(args=None):
         formatter_class=argparse.RawTextHelpFormatter,
     )
 
-    if IS_WIN:
-        python_path_default = 'c:/python27/python.exe'
-    else:
-        python_path_default = 'python'
     # Used it --use-branch is specified
     repo_url = 'https://github.com/{user}/cloudify-cli/archive/{branch}.tar.gz'
 
@@ -698,12 +693,6 @@ def parse_args(args=None):
     parser.add_argument(
         '--pythonpath',
         help=argparse.SUPPRESS,
-    )
-    parser.add_argument(
-        '--python-path',
-        type=str,
-        default=python_path_default,
-        help='Python path to use when creating a virtualenv.',
     )
     # Deprecated argument, used to print warning and allow us to cleanly
     # remove it in the future
@@ -803,13 +792,22 @@ def parse_args(args=None):
     }
     for deprecated, new_value in deprecations.items():
         if new_value in parsed_args and parsed_args[deprecated]:
-            logger.warning(
-                '--{depvar} is deprecated. Use --{newvar}. '
-                '--{depvar} will be removed in a future release.'.format(
-                    depvar=deprecated.replace('_', '-'),
-                    newvar=new_value.replace('_', '-'),
+            if deprecated == 'pythonpath':
+                # Special case as pythonpath is being fully removed
+                logger.warning(
+                    '--pythonpath is deprecated. '
+                    'To use a different interpreter, run this script with '
+                    'your preferred interpreter and that interpreter will be '
+                    'used.'
                 )
-            )
+            else:
+                logger.warning(
+                    '--{depvar} is deprecated. Use --{newvar}. '
+                    '--{depvar} will be removed in a future release.'.format(
+                        depvar=deprecated.replace('_', '-'),
+                        newvar=new_value.replace('_', '-'),
+                    )
+                )
             # Now make sure we use the value that was set
             parsed_args[new_value] = parsed_args[deprecated]
 
