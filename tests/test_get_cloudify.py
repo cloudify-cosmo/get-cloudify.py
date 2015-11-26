@@ -81,6 +81,67 @@ class CliBuilderUnitTests(testtools.TestCase):
         self.assertIsNot(proc.returncode, 0, 'command \'{}\' execution was '
                                              'expected to fail'.format(cmd))
 
+    @mock.patch('get-cloudify.os')
+    def test_is_root(self, mock_os):
+        mock_os.getuid.return_value = 0
+        self.assertTrue(self.get_cloudify._is_root())
+
+    @mock.patch('get-cloudify.os')
+    def test_not_is_root(self, mock_os):
+        mock_os.getuid.return_value = 1
+        self.assertFalse(self.get_cloudify._is_root())
+
+    @mock.patch('get-cloudify._is_root')
+    @mock.patch('get-cloudify.logger')
+    @mock.patch('get-cloudify.os')
+    def test_drop_root_privileges_from_sudo(self,
+                                            mock_os,
+                                            mock_log,
+                                            mock_root_check):
+        mock_root_check.return_value = True
+        type(mock_os).environ = mock.PropertyMock(
+            return_value={
+                'SUDO_GID': 12345,
+                'SUDO_UID': 54321,
+            },
+        )
+
+        self.get_cloudify.drop_root_privileges()
+        mock_log.info.assert_called_once_with('Dropping root permissions...')
+        mock_os.setegid.assert_called_once_with(12345)
+        mock_os.seteuid.assert_called_once_with(54321)
+
+    @mock.patch('get-cloudify._is_root')
+    @mock.patch('get-cloudify.logger')
+    @mock.patch('get-cloudify.os')
+    def test_drop_root_privileges_without_sudo(self,
+                                               mock_os,
+                                               mock_log,
+                                               mock_root_check):
+        mock_root_check.return_value = True
+        type(mock_os).environ = mock.PropertyMock(
+            return_value={},
+        )
+
+        self.get_cloudify.drop_root_privileges()
+        mock_log.info.assert_called_once_with('Dropping root permissions...')
+        mock_os.setegid.assert_called_once_with(0)
+        mock_os.seteuid.assert_called_once_with(0)
+
+    @mock.patch('get-cloudify._is_root')
+    @mock.patch('get-cloudify.logger')
+    @mock.patch('get-cloudify.os')
+    def test_no_drop_root_privileges(self,
+                                     mock_os,
+                                     mock_log,
+                                     mock_root_check):
+        mock_root_check.return_value = False
+
+        self.get_cloudify.drop_root_privileges()
+        self.assertFalse(mock_log.info.called)
+        self.assertFalse(mock_os.setegid.called)
+        self.assertFalse(mock_os.seteuid.called)
+
     @mock.patch('get-cloudify.sys.exit')
     @mock.patch('get-cloudify.logger')
     def test_exit_unsupported_os(self,
@@ -136,8 +197,8 @@ class CliBuilderUnitTests(testtools.TestCase):
     @mock.patch('get-cloudify.sys.exit')
     @mock.patch('get-cloudify.logger')
     def test_exit_dep_install_fail(self,
-                                 mock_log,
-                                 mock_exit):
+                                   mock_log,
+                                   mock_exit):
         self.get_cloudify.exit(
             message='Install failure',
             status='dependency_installation_failure',
