@@ -127,9 +127,6 @@ PROCESS_POLLING_INTERVAL = 0.1
 # defined below
 logger = None
 
-if not (IS_LINUX or IS_DARWIN or IS_WIN):
-    sys.exit('Platform {0} not supported.'.format(PLATFORM))
-
 
 def init_logger(logger_name):
     logger = logging.getLogger(logger_name)
@@ -141,6 +138,21 @@ def init_logger(logger_name):
     logger.addHandler(handler)
 
     return logger
+
+
+def exit(message, status):
+    exit_codes = {
+        'unsupported_platform': 200,
+        'virtualenv_creation_failure': 210,
+        'dependency_download_failure': 220,
+        'dependency_extraction_failure': 221,
+        'dependency_installation_failure': 222,
+        'dependency_unsupported_on_distribution': 223,
+        'cloudify_already_installed': 230,
+    }
+
+    logger.error(message)
+    sys.exit(exit_codes[status])
 
 
 def run(cmd, suppress_errors=False):
@@ -200,7 +212,10 @@ def make_virtualenv(virtualenv_dir, python_path):
     logger.info('Creating Virtualenv {0}...'.format(virtualenv_dir))
     result = run('virtualenv -p {0} {1}'.format(python_path, virtualenv_dir))
     if not result.returncode == 0:
-        sys.exit('Could not create virtualenv: {0}'.format(virtualenv_dir))
+        exit(
+            message='Could not create virtualenv: {0}'.format(virtualenv_dir),
+            status='virtualenv_creation_failure',
+        )
 
 
 def install_module(module, version=False, pre=False, virtualenv_path=False,
@@ -237,7 +252,10 @@ def install_module(module, version=False, pre=False, virtualenv_path=False,
     result = run(' '.join(pip_cmd))
     if not result.returncode == 0:
         logger.error(result.aggr_stdout)
-        sys.exit('Could not install module: {0}.'.format(module))
+        exit(
+            message='Could not install module: {0}.'.format(module),
+            status='dependency_installation_failure',
+        )
 
 
 def untar_requirement_files(archive, destination):
@@ -451,12 +469,19 @@ class CloudifyInstaller():
                 try:
                     download_file(PIP_URL, get_pip_path)
                 except StandardError as e:
-                    sys.exit('Failed downloading pip from {0}. ({1})'.format(
-                             PIP_URL, e.message))
+                    exit(
+                        message='Failed pip download from {0}. ({1})'.format(
+                            PIP_URL, e.message
+                        ),
+                        status='dependency_download_failure',
+                    )
                 result = run('{0} {1}'.format(
                     self.python_path, get_pip_path))
                 if not result.returncode == 0:
-                    sys.exit('Could not install pip')
+                    exit(
+                        message='Could not install pip',
+                        status='dependency_installation_failure',
+                    )
             finally:
                 shutil.rmtree(tempdir)
         else:
@@ -474,15 +499,19 @@ class CloudifyInstaller():
             try:
                 download_file(source, archive)
             except Exception as ex:
-                logger.error('Could not download {0} ({1})'.format(
-                    source, str(ex)))
-                sys.exit(1)
+                exit(
+                    message='Could not download {0} ({1})'.format(
+                        source, str(ex)),
+                    status='dependency_download_failure',
+                )
             try:
                 untar_requirement_files(archive, tempdir)
             except Exception as ex:
-                logger.error('Could not extract {0} ({1})'.format(
-                    archive, str(ex)))
-                sys.exit(1)
+                exit(
+                    message='Could not extract {0} ({1})'.format(
+                        archive, str(ex)),
+                    status='dependency_extraction_failure',
+                )
             finally:
                 os.remove(archive)
             # GitHub always adds a single parent directory to the tree.
@@ -510,8 +539,11 @@ class CloudifyInstaller():
             logger.info('python-dev package not required on Darwin.')
             return
         else:
-            sys.exit('python-dev package installation not supported '
-                     'in current distribution.')
+            exit(
+                message='python-dev package installation not supported '
+                        'in current distribution.',
+                status='dependency_unsupported_on_distribution',
+            )
         run(cmd)
 
     # Windows only
@@ -556,8 +588,13 @@ def handle_upgrade(upgrade=False, virtualenv=''):
         if upgrade:
             logger.info('Upgrading...')
         else:
-            logger.error('Use the --upgrade flag to upgrade.')
-            sys.exit(1)
+            logger.warn('If your previous attempt to install failed, '
+                        'cloudify may be partially installed. You can '
+                        "'upgrade' to fix this.")
+            exit(
+                message='Use the --upgrade flag to upgrade.',
+                status='cloudify_already_installed',
+            )
 
 
 def parse_args(args=None):
@@ -806,6 +843,12 @@ def parse_args(args=None):
 
 
 logger = init_logger(__file__)
+
+if not (IS_LINUX or IS_DARWIN or IS_WIN):
+    exit(
+        message='Platform {0} not supported.'.format(PLATFORM),
+        status='unsupported_platform',
+    )
 
 
 if __name__ == '__main__':
