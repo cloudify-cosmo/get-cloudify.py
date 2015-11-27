@@ -308,6 +308,86 @@ class CliBuilderUnitTests(testtools.TestCase):
             status='dependency_installation_failure',
         )
 
+    @mock.patch('get-cloudify.logger')
+    @mock.patch('get-cloudify.run')
+    @mock.patch('get-cloudify.IS_VIRTUALENV')
+    def test_install_in_existing_venv_no_path(self,
+                                              mock_is_venv,
+                                              mock_run,
+                                              mock_log):
+        # Original value will be restored by mock patch
+        self.get_cloudify.IS_VIRTUALENV = True
+
+        type(mock_run.return_value).returncode = mock.PropertyMock(
+            return_value=0,
+        )
+
+        self.get_cloudify.install_package('test-package')
+
+        expected_info_log_calls = [
+            mock.call('Installing test-package...'),
+            mock.call('Installing within current virtualenv.'),
+        ]
+        mock_log.info.assert_has_calls(expected_info_log_calls)
+        self.assertEquals(2, mock_log.info.call_count)
+        mock_run.assert_called_once_with(
+            'pip install test-package',
+        )
+
+    @mock.patch('get-cloudify.logger')
+    @mock.patch('get-cloudify.run')
+    @mock.patch('get-cloudify.IS_VIRTUALENV')
+    @mock.patch('get-cloudify._get_env_bin_path',
+                return_value='/my/venv/bin')
+    def test_install_with_venv_path(self,
+                                    mock_bin_path,
+                                    mock_is_venv,
+                                    mock_run,
+                                    mock_log):
+        # Original value will be restored by mock patch
+        self.get_cloudify.IS_VIRTUALENV = False
+
+        type(mock_run.return_value).returncode = mock.PropertyMock(
+            return_value=0,
+        )
+
+        self.get_cloudify.install_package('test-package',
+                                          virtualenv_path='/my/venv')
+
+        mock_log.info.assert_called_once_with(
+            'Installing test-package...',
+        )
+        mock_run.assert_called_once_with(
+            '/my/venv/bin/pip install test-package',
+        )
+
+    @mock.patch('get-cloudify.logger')
+    @mock.patch('get-cloudify.run')
+    @mock.patch('get-cloudify.IS_VIRTUALENV')
+    @mock.patch('get-cloudify._get_env_bin_path',
+                return_value='/my/venv/bin')
+    def test_install_with_venv_path_ignores_current_venv(self,
+                                                         mock_bin_path,
+                                                         mock_is_venv,
+                                                         mock_run,
+                                                         mock_log):
+        # Original value will be restored by mock patch
+        self.get_cloudify.IS_VIRTUALENV = True
+
+        type(mock_run.return_value).returncode = mock.PropertyMock(
+            return_value=0,
+        )
+
+        self.get_cloudify.install_package('test-package',
+                                          virtualenv_path='/my/venv')
+
+        mock_log.info.assert_called_once_with(
+            'Installing test-package...',
+        )
+        mock_run.assert_called_once_with(
+            '/my/venv/bin/pip install test-package',
+        )
+
     def test_get_os_props(self):
         distro = self.get_cloudify.get_os_props()[0]
         distros = ('ubuntu', 'redhat', 'debian', 'fedora', 'centos',

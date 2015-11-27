@@ -236,6 +236,8 @@ def install_package(package, version=False, pre=False, virtualenv_path=False,
     if virtualenv_path:
         pip_cmd[0] = os.path.join(
             _get_env_bin_path(virtualenv_path), pip_cmd[0])
+    elif IS_VIRTUALENV:
+        logger.info('Installing within current virtualenv.')
     if requirement_files:
         for req_file in requirement_files:
             pip_cmd.extend(['-r', req_file])
@@ -245,9 +247,6 @@ def install_package(package, version=False, pre=False, virtualenv_path=False,
         pip_cmd.append('--pre')
     if upgrade:
         pip_cmd.append('--upgrade')
-    if IS_VIRTUALENV and not virtualenv_path:
-        logger.info('Installing within current virtualenv: {0}...'.format(
-            IS_VIRTUALENV))
     result = run(' '.join(pip_cmd))
     if not result.returncode == 0:
         logger.error(result.aggr_stdout)
