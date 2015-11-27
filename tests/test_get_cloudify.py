@@ -21,6 +21,7 @@ import mock
 import shutil
 import os
 import tarfile
+import logging
 import importlib
 import sys
 
@@ -80,6 +81,282 @@ class CliBuilderUnitTests(testtools.TestCase):
         proc = self.get_cloudify.run(cmd)
         self.assertIsNot(proc.returncode, 0, 'command \'{}\' execution was '
                                              'expected to fail'.format(cmd))
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.exit',
+                side_effect=SystemExit)
+    @mock.patch('get-cloudify.PLATFORM')
+    def test_main_unsupported_os(self,
+                                 mock_platform,
+                                 mock_exit,
+                                 mock_darwin,
+                                 mock_win,
+                                 mock_linux):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = False
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+        self.get_cloudify.PLATFORM = 'fake'
+
+        self.assertRaises(
+            SystemExit,
+            self.get_cloudify.main,
+        )
+        mock_exit.assert_called_once_with(
+            message='Platform fake not supported.',
+            status='unsupported_platform',
+        )
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    @mock.patch('get-cloudify.CloudifyInstaller')
+    @mock.patch(
+        'get-cloudify.parse_args',
+        return_value=[
+            {
+                'quiet': False,
+                'verbose': False,
+            },
+            [],
+        ],
+    )
+    def test_main_linux(self,
+                        mock_parse_args,
+                        mock_installer,
+                        mock_log,
+                        mock_darwin,
+                        mock_win,
+                        mock_linux):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = True
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        self.get_cloudify.main()
+
+        mock_parse_args.assert_called_once_with()
+        mock_log.setLevel.assert_called_once_with(logging.INFO)
+        mock_installer.assert_called_once_with()
+        mock_installer().execute.assert_called_once_with()
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    @mock.patch('get-cloudify.CloudifyInstaller')
+    @mock.patch(
+        'get-cloudify.parse_args',
+        return_value=[
+            {
+                'quiet': False,
+                'verbose': False,
+            },
+            [],
+        ],
+    )
+    def test_main_windows(self,
+                          mock_parse_args,
+                          mock_installer,
+                          mock_log,
+                          mock_darwin,
+                          mock_win,
+                          mock_linux):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = False
+        self.get_cloudify.IS_WIN = True
+        self.get_cloudify.IS_DARWIN = False
+
+        self.get_cloudify.main()
+
+        mock_parse_args.assert_called_once_with()
+        mock_log.setLevel.assert_called_once_with(logging.INFO)
+        mock_installer.assert_called_once_with()
+        mock_installer().execute.assert_called_once_with()
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    @mock.patch('get-cloudify.CloudifyInstaller')
+    @mock.patch(
+        'get-cloudify.parse_args',
+        return_value=[
+            {
+                'quiet': False,
+                'verbose': False,
+            },
+            [],
+        ],
+    )
+    def test_main_darwin(self,
+                         mock_parse_args,
+                         mock_installer,
+                         mock_log,
+                         mock_darwin,
+                         mock_win,
+                         mock_linux):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = False
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = True
+
+        self.get_cloudify.main()
+
+        mock_parse_args.assert_called_once_with()
+        mock_log.setLevel.assert_called_once_with(logging.INFO)
+        mock_installer.assert_called_once_with()
+        mock_installer().execute.assert_called_once_with()
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    @mock.patch('get-cloudify.CloudifyInstaller')
+    @mock.patch(
+        'get-cloudify.parse_args',
+        return_value=[
+            {
+                'quiet': True,
+                'verbose': False,
+            },
+            [],
+        ],
+    )
+    def test_main_quiet_logging(self,
+                                mock_parse_args,
+                                mock_installer,
+                                mock_log,
+                                mock_darwin,
+                                mock_win,
+                                mock_linux):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = False
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = True
+
+        self.get_cloudify.main()
+
+        mock_parse_args.assert_called_once_with()
+        mock_log.setLevel.assert_called_once_with(logging.ERROR)
+        mock_installer.assert_called_once_with()
+        mock_installer().execute.assert_called_once_with()
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    @mock.patch('get-cloudify.CloudifyInstaller')
+    @mock.patch(
+        'get-cloudify.parse_args',
+        return_value=[
+            {
+                'quiet': False,
+                'verbose': True,
+            },
+            [],
+        ],
+    )
+    def test_main_verbose_logging(self,
+                                  mock_parse_args,
+                                  mock_installer,
+                                  mock_log,
+                                  mock_darwin,
+                                  mock_win,
+                                  mock_linux):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = False
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = True
+
+        self.get_cloudify.main()
+
+        mock_parse_args.assert_called_once_with()
+        mock_log.setLevel.assert_called_once_with(logging.DEBUG)
+        mock_installer.assert_called_once_with()
+        mock_installer().execute.assert_called_once_with()
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    @mock.patch('get-cloudify.CloudifyInstaller')
+    @mock.patch(
+        'get-cloudify.parse_args',
+        return_value=[
+            {
+                'quiet': False,
+                'verbose': False,
+                'fake_arg': 'this',
+            },
+            [],
+        ],
+    )
+    def test_main_parsed_args_used(self,
+                                   mock_parse_args,
+                                   mock_installer,
+                                   mock_log,
+                                   mock_darwin,
+                                   mock_win,
+                                   mock_linux):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = False
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = True
+
+        self.get_cloudify.main()
+
+        mock_parse_args.assert_called_once_with()
+        mock_log.setLevel.assert_called_once_with(logging.INFO)
+        mock_installer.assert_called_once_with(
+            fake_arg='this',
+        )
+        mock_installer().execute.assert_called_once_with()
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    @mock.patch('get-cloudify.CloudifyInstaller')
+    @mock.patch(
+        'get-cloudify.parse_args',
+        return_value=[
+            {
+                'quiet': False,
+                'verbose': False,
+                'fake_arg': 'this',
+                'ignored_arg': 'that',
+                'also_ignored': 'other',
+            },
+            [
+                'ignored_arg',
+                'also_ignored',
+            ],
+        ],
+    )
+    def test_main_deprecated_not_passed(self,
+                                        mock_parse_args,
+                                        mock_installer,
+                                        mock_log,
+                                        mock_darwin,
+                                        mock_win,
+                                        mock_linux):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = False
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = True
+
+        self.get_cloudify.main()
+
+        mock_parse_args.assert_called_once_with()
+        mock_log.setLevel.assert_called_once_with(logging.INFO)
+        mock_installer.assert_called_once_with(
+            fake_arg='this',
+        )
+        mock_installer().execute.assert_called_once_with()
 
     @mock.patch('get-cloudify.os')
     def test_is_root(self, mock_os):
