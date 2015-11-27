@@ -358,6 +358,22 @@ class CliBuilderUnitTests(testtools.TestCase):
         )
         mock_installer().execute.assert_called_once_with()
 
+    @mock.patch('get-cloudify.IS_WIN')
+    def test_get_env_bin_path_windows(self, mock_win):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_WIN = True
+
+        result = self.get_cloudify._get_env_bin_path('path')
+        self.assertEquals('path/scripts', result)
+
+    @mock.patch('get-cloudify.IS_WIN')
+    def test_get_env_bin_path_not_windows(self, mock_win):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_WIN = False
+
+        result = self.get_cloudify._get_env_bin_path('path')
+        self.assertEquals('path/bin', result)
+
     @mock.patch('get-cloudify.os')
     def test_is_root(self, mock_os):
         mock_os.getuid.return_value = 0

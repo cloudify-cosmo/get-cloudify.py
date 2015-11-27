@@ -284,15 +284,9 @@ def get_os_props():
 def _get_env_bin_path(env_path):
     """returns the bin path for a virtualenv
     """
-    try:
-        import virtualenv
-        return virtualenv.path_locations(env_path)[3]
-    except ImportError:
-        # this is a fallback for a race condition in which you're trying
-        # to use the script and create a virtualenv from within
-        # a virtualenv in which virtualenv isn't installed and so
-        # is not importable.
-        return os.path.join(env_path, 'scripts' if IS_WIN else 'bin')
+    # Not using virtualenv's path_locations due to potential race conditions.
+    # Therefore we use just the fallback method to get reliable behaviour
+    return os.path.join(env_path, 'scripts' if IS_WIN else 'bin')
 
 
 class PipeReader(Thread):
