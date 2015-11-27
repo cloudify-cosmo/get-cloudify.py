@@ -82,6 +82,95 @@ class CliBuilderUnitTests(testtools.TestCase):
         self.assertIsNot(proc.returncode, 0, 'command \'{}\' execution was '
                                              'expected to fail'.format(cmd))
 
+    def test_installer_init_unexpected_argument(self):
+        """Make sure typos in parse_args don't go un-noticed with **kwargs."""
+        self.assertRaises(
+            TypeError,
+            self.get_cloudify.CloudifyInstaller,
+            unknown_argument='unknown',
+        )
+
+    def test_installer_init_no_args(self):
+        """Installer should initialise with no args."""
+        self.get_cloudify.CloudifyInstaller()
+
+    @mock.patch('get-cloudify.IS_WIN')
+    def test_installer_init_pycrypto_not_windows(self, mock_win):
+        """Installer init should complain with pycrypto not on windows."""
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_WIN = False
+
+        self.assertRaises(
+            self.get_cloudify.ArgumentNotValidForOS,
+            self.get_cloudify.CloudifyInstaller,
+            install_pycrypto=True,
+        )
+
+    @mock.patch('get-cloudify.IS_WIN')
+    def test_installer_init_pycrypto_windows(self, mock_win):
+        """Installer init should work with pycrypto on windows."""
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_WIN = True
+
+        self.get_cloudify.CloudifyInstaller(
+            install_pycrypto=True,
+        )
+
+    def test_installer_init_version_set(self):
+        """Installer init should work with version set."""
+        self.get_cloudify.CloudifyInstaller(
+            version='1',
+        )
+
+    def test_installer_init_pre_set(self):
+        """Installer init should work with pre set."""
+        self.get_cloudify.CloudifyInstaller(
+            pre=True,
+        )
+
+    def test_installer_init_source_set(self):
+        """Installer init should work with source set."""
+        self.get_cloudify.CloudifyInstaller(
+            source='http://www.example.com/example.tar.gz',
+        )
+
+    def test_installer_init_version_and_pre_failure(self):
+        """Installer init should fail with version and pre."""
+        self.assertRaises(
+            self.get_cloudify.ArgumentCombinationInvalid,
+            self.get_cloudify.CloudifyInstaller,
+            version='1',
+            pre=True,
+        )
+
+    def test_installer_init_version_and_source_failure(self):
+        """Installer init should fail with version and source."""
+        self.assertRaises(
+            self.get_cloudify.ArgumentCombinationInvalid,
+            self.get_cloudify.CloudifyInstaller,
+            version='1',
+            source='http://www.example.com/example.tar.gz',
+        )
+
+    def test_installer_init_pre_and_source_failure(self):
+        """Installer init should fail with pre and source."""
+        self.assertRaises(
+            self.get_cloudify.ArgumentCombinationInvalid,
+            self.get_cloudify.CloudifyInstaller,
+            pre=True,
+            source='http://www.example.com/example.tar.gz',
+        )
+
+    def test_installer_init_pre_and_version_and_source_failure(self):
+        """Installer init should fail with pre, version and source."""
+        self.assertRaises(
+            self.get_cloudify.ArgumentCombinationInvalid,
+            self.get_cloudify.CloudifyInstaller,
+            pre=True,
+            version='1',
+            source='http://www.example.com/example.tar.gz',
+        )
+
     @mock.patch('get-cloudify.IS_LINUX')
     @mock.patch('get-cloudify.IS_WIN')
     @mock.patch('get-cloudify.IS_DARWIN')

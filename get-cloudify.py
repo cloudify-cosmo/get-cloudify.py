@@ -366,8 +366,8 @@ class CloudifyInstaller():
             (source and (version or pre))
         ):
             raise ArgumentCombinationInvalid(
-                'Setting more than one of version, pre, and source, '
-                'will cause undefined behaviour.'
+                'Setting more than one of version, pre, and source '
+                'is not supported.'
             )
 
         os_props = get_os_props()
