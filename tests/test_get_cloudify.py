@@ -171,6 +171,16 @@ class CliBuilderUnitTests(testtools.TestCase):
             source='http://www.example.com/example.tar.gz',
         )
 
+    def test_is_module_installed(self):
+        installer = self.get_cloudify.CloudifyInstaller()
+
+        self.assertTrue(installer.is_installed('os'))
+
+    def test_is_module_not_installed(self):
+        installer = self.get_cloudify.CloudifyInstaller()
+
+        self.assertFalse(installer.is_installed('not_real_module'))
+
     @mock.patch('get-cloudify.IS_LINUX')
     @mock.patch('get-cloudify.IS_WIN')
     @mock.patch('get-cloudify.IS_DARWIN')
@@ -619,7 +629,7 @@ class CliBuilderUnitTests(testtools.TestCase):
                 side_effect=SystemExit)
     @mock.patch('get-cloudify.download_file',
                 side_effect=StandardError('Boom!'))
-    @mock.patch('get-cloudify.CloudifyInstaller.find_pip',
+    @mock.patch('get-cloudify.CloudifyInstaller.is_installed',
                 return_value=False)
     def test_install_pip_failed_download(self,
                                          mock_find_pip,
@@ -642,7 +652,7 @@ class CliBuilderUnitTests(testtools.TestCase):
                 side_effect=SystemExit)
     @mock.patch('get-cloudify.download_file',
                 return_value=None)
-    @mock.patch('get-cloudify.CloudifyInstaller.find_pip',
+    @mock.patch('get-cloudify.CloudifyInstaller.is_installed',
                 return_value=False)
     def test_install_pip_fail(self,
                               mock_find_pip,

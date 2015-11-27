@@ -56,6 +56,11 @@ import time
 import tarfile
 from threading import Thread
 
+# Future proofing for python 3.4+ - imp is being deprecated, but importlib
+# does not have all required functions in 2.7
+import importlib
+if not hasattr(importlib, 'find_loader'):
+    import imp
 
 DESCRIPTION = '''This script installs Cloudify's CLI on Linux,
 Windows (with Python32 AND 64), and OS X (Darwin).
@@ -435,32 +440,30 @@ class CloudifyInstaller():
             logger.info('You can now run: "{0}" to activate '
                         'the Virtualenv.'.format(activate_command))
 
-    @staticmethod
-    def find_virtualenv():
-        try:
-            import virtualenv  # NOQA
+    def is_installed(self, module):
+        if hasattr(importlib, 'find_loader'):
+            found = importlib.find_loader(module)
+        else:
+            try:
+                found = imp.find_module(module)
+            except ImportError:
+                found = False
+        # Coerce result to boolean
+        if found:
             return True
-        except:
+        else:
             return False
 
     def get_virtualenv(self):
-        if not self.find_virtualenv():
+        if not self.is_installed('virtualenv'):
             logger.info('Installing virtualenv...')
             install_package('virtualenv', pip_args=self.pip_args)
         else:
             logger.info('virtualenv is already installed in the path.')
 
-    @staticmethod
-    def find_pip():
-        try:
-            import pip  # NOQA
-            return True
-        except:
-            return False
-
     def get_pip(self):
-        logger.info('Installing pip...')
-        if not self.find_pip():
+        if not self.is_installed('pip'):
+            logger.info('Installing pip...')
             try:
                 tempdir = tempfile.mkdtemp()
                 get_pip_path = os.path.join(tempdir, 'get-pip.py')
@@ -586,11 +589,7 @@ class CloudifyInstaller():
                 suppress_errors=True)
             return result.returncode == 0
         else:
-            try:
-                import cloudify  # NOQA
-                return True
-            except ImportError:
-                return False
+            return self.is_installed('cloudify')
 
 
 def parse_args(args=None):
