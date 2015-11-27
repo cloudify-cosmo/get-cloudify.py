@@ -219,7 +219,7 @@ def make_virtualenv(virtualenv_dir, python_path):
 
 
 def install_package(package, version=False, pre=False, virtualenv_path=False,
-                    wheels_path=False, requirement_files=None, upgrade=False,
+                    requirement_files=None, upgrade=False,
                     pip_args=()):
     """This will install a Python package.
 
@@ -241,9 +241,6 @@ def install_package(package, version=False, pre=False, virtualenv_path=False,
             pip_cmd.extend(['-r', req_file])
     package = '{0}=={1}'.format(package, version) if version else package
     pip_cmd.append(package)
-    if wheels_path:
-        pip_cmd.extend(
-            ['--use-wheel', '--no-index', '--find-links', wheels_path])
     if pre:
         pip_cmd.append('--pre')
     if upgrade:
@@ -328,8 +325,6 @@ class CloudifyInstaller():
                  source='',
                  with_requirements='',
                  pip_args=(),
-                 force_online=False,
-                 wheels_path='wheelhouse',
                  python_path=sys.executable,
                  install_pip=False,
                  install_virtualenv=False,
@@ -345,8 +340,6 @@ class CloudifyInstaller():
         self.source = source
         self.with_requirements = with_requirements
         self.pip_args = pip_args
-        self.force_online = force_online
-        self.wheels_path = wheels_path
         self.python_path = python_path
         self.install_pip = install_pip
         self.install_virtualenv = install_virtualenv
@@ -408,25 +401,14 @@ class CloudifyInstaller():
             self.with_requirements = self.with_requirements \
                 or self._get_default_requirement_files(self.source)
 
-        if self.force_online or not os.path.isdir(self.wheels_path):
-            install_package(package=package,
-                            version=self.version,
-                            pre=self.pre,
-                            pip_args=self.pip_args,
-                            virtualenv_path=self.virtualenv,
-                            requirement_files=self.with_requirements,
-                            upgrade=self.upgrade)
-        elif os.path.isdir(self.wheels_path):
-            logger.info('Wheels directory found: "{0}". '
-                        'Attemping offline installation...'.format(
-                            self.wheels_path))
-            install_package(package=package,
-                            pre=True,
-                            pip_args=self.pip_args,
-                            virtualenv_path=self.virtualenv,
-                            wheels_path=self.wheels_path,
-                            requirement_files=self.with_requirements,
-                            upgrade=self.upgrade)
+        install_package(package=package,
+                        version=self.version,
+                        pre=self.pre,
+                        pip_args=self.pip_args,
+                        virtualenv_path=self.virtualenv,
+                        requirement_files=self.with_requirements,
+                        upgrade=self.upgrade)
+
         if self.virtualenv:
             activate_path = os.path.join(env_bin_path, 'activate')
             activate_command = \
@@ -646,6 +628,9 @@ def parse_args(args=None):
              'This will result in installing from: {0}'.format(repo_url)
     )
 
+    # This group currently has only one, deprecated entry
+    # However, it has not been removed as offline install functionality is to
+    # be re-introduced later.
     online_group = parser.add_mutually_exclusive_group()
     # Deprecated argument, used to print warning and allow us to cleanly
     # remove it in the future
@@ -658,19 +643,6 @@ def parse_args(args=None):
         '--force-online',
         action='store_true',
         help='Even if wheels are found locally, install from PyPI.',
-    )
-    # Deprecated argument, used to print warning and allow us to cleanly
-    # remove it in the future
-    online_group.add_argument(
-        '--wheelspath',
-        type=str,
-        help=argparse.SUPPRESS,
-    )
-    online_group.add_argument(
-        '--wheels-path',
-        type=str,
-        default='wheelhouse',
-        help='Path to wheels (defaults to "<cwd>/wheelhouse").',
     )
 
     # Non group arguments
@@ -789,7 +761,6 @@ def parse_args(args=None):
         'installvirtualenv': 'install_virtualenv',
         'installpip': 'install_pip',
         'pythonpath': 'python_path',
-        'wheelspath': 'wheels_path',
         'forceonline': 'force_online',
         'installpycrypto': 'install_pycrypto',
         'installpythondev': 'install_pythondev',
@@ -803,6 +774,12 @@ def parse_args(args=None):
                     'To use a different interpreter, run this script with '
                     'your preferred interpreter and that interpreter will be '
                     'used.'
+                )
+            elif deprecated == 'forceonline':
+                logger.warning(
+                    '--forceonline is deprecated. '
+                    'Online install is currently the only option, so this '
+                    'argument will be ignored.'
                 )
             else:
                 logger.warning(
