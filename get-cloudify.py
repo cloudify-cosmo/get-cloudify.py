@@ -749,12 +749,12 @@ def parse_args(args=None):
         # Deprecated argument, used to print warning and allow us to cleanly
         # remove it in the future
         parser.add_argument(
-            '--install-pycrypto',
+            '--installpycrypto',
             action='store_true',
             help=argparse.SUPPRESS,
         )
         parser.add_argument(
-            '--installpycrypto',
+            '--install-pycrypto',
             action='store_true',
             help='Attempt to install PyCrypto.',
         )
