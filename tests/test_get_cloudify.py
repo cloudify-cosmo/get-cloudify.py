@@ -405,7 +405,6 @@ class TestArgParser(testtools.TestCase):
         self.assertFalse(args['verbose'])
         self.assertIsNone(args['version'])
         self.assertIsNone(args['virtualenv'])
-        self.assertEqual(args['wheels_path'], 'wheelhouse')
 
     def test_args_chosen(self):
         self.get_cloudify.IS_LINUX = True
