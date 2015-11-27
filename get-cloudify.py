@@ -315,6 +315,14 @@ class PipeReader(Thread):
                 time.sleep(PROCESS_POLLING_INTERVAL)
 
 
+class ArgumentNotValidForOS(Exception):
+    pass
+
+
+class ArgumentCombinationInvalid(Exception):
+    pass
+
+
 class CloudifyInstaller():
     def __init__(self,
                  force=False,
@@ -346,11 +354,28 @@ class CloudifyInstaller():
         self.install_pythondev = install_pythondev
         self.install_pycrypto = install_pycrypto
 
-        # TODO: we should test all mutually exclusive arguments.
+        # When using the command line it should be impossible to reach these.
+        # However, if importing this class to use elsewhere they can be, so
+        # exceptions will be raised.
         if not IS_WIN and self.install_pycrypto:
-            logger.warning('Pycrypto only relevant on Windows.')
+            raise ArgumentNotValidForOS(
+                'Pycrypto is only relevant on Windows.'
+            )
         if not (IS_LINUX or IS_DARWIN) and self.installpythondev:
-            logger.warning('Pythondev only relevant on Linux or OSx.')
+            raise ArgumentNotValidForOS(
+                'Pythondev is only relevant on Linux or OSX'
+            )
+        # This mutually exclusive check could use simplified logic, but that
+        # would make the intent less clear
+        if (
+            (version and (pre or source)) or
+            (pre and (version or source)) or
+            (source and (version or pre))
+        ):
+            raise ArgumentCombinationInvalid(
+                'Setting more than one of version, pre, and source, '
+                'will cause undefined behaviour.'
+            )
 
         os_props = get_os_props()
         self.distro = os_distro or os_props[0].lower()
