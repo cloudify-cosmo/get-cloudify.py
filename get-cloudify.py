@@ -235,7 +235,8 @@ def _install_package(package, version=False, pre=False, virtualenv_path=False,
     """
     logger.info('Installing {0}...'.format(package))
     pip_cmd = ['pip', 'install']
-    pip_cmd.extend(pip_args.split())
+    if pip_args is not None:
+        pip_cmd.extend(pip_args.split())
     if virtualenv_path:
         pip_cmd[0] = os.path.join(
             _get_env_bin_path(virtualenv_path), pip_cmd[0])
