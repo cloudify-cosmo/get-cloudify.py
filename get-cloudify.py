@@ -62,10 +62,12 @@ import importlib
 if not hasattr(importlib, 'find_loader'):
     import imp
 
+version = (2, 0, 0)
+version_str = '.'.join(str(ver) for ver in version)
+
 DESCRIPTION = '''This script installs Cloudify's CLI on Linux,
 Windows (with Python32 AND 64), and OS X (Darwin).
 On the linux front, it supports Debian/Ubuntu, CentOS/RHEL and Arch.
-With Windows, cygwin should not be used.
 
 Note that the script attempts to not be instrusive by forcing the user
 to explicitly declare installation of various dependencies.
@@ -78,24 +80,20 @@ providing a --virtualenv path, Cloudify will be installed within the virtualenv
 you're in.
 
 The script allows you to install requirement txt files when installing from
---source.
+--source (or with --use-branch).
 If --with-requirements is provided with a value (a URL or path to
 a requirements file) it will use it. If it's provided without a value, it
-will try to download the archive provided in --source, extract it, and look for
-dev-requirements.txt and requirements.txt files within it.
-
-Passing the --wheels-path allows for an offline installation of Cloudify
-from predownloaded Cloudify dependency wheels. Note that if wheels are found
-within the default wheels directory or within --wheels-path, they will (unless
-the --force-online flag is set) be used instead of performing an online
-installation.
+will try to download the archive provided in --source or extrapolated from
+--use-branch, extract it, and look for dev-requirements.txt and
+requirements.txt files within it.
 
 The script will attempt to install all necessary requirements including
 python-dev and gcc (for Fabric on Linux), pycrypto (for Fabric on Windows),
 pip and virtualenv (if --virtualenv was specified) depending on the OS and
-Distro you're running on.
+Distro you're running on if requested with --install-pythondev or
+--install-pycrypto, or if called with --force.
 Note that to install certain dependencies (like pip or pythondev), you must
-run the script as sudo.
+run the script as sudo, or (NOT RECOMMENDED) as root.
 
 It's important to note that even if you're running as sudo, if you're
 installing in a declared virtualenv, the script will drop the root privileges
@@ -731,6 +729,11 @@ def parse_args(args=None):
              'the duration of this script but will not apply when, e.g. '
              'bootstrapping cloudify. You will likely need to quote this if '
              'you are using more than one argument.',
+    )
+    parser.add_argument(
+        '--get-version',
+        action='version',
+        version=version_str,
     )
 
     # OS dependent arguments
