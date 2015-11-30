@@ -384,10 +384,6 @@ class CloudifyInstaller():
         """Installation Logic
 
         --force argument forces installation of all prerequisites.
-        If a wheels directory is found, it will be used for offline
-        installation unless explicitly prevented using the --force-online flag.
-        If an offline installation fails (for instance, not all wheels were
-        found), an online installation process will commence.
         """
         logger.debug('Identified Platform: {0}'.format(PLATFORM))
         logger.debug('Identified Distribution: {0}'.format(self.distro))
@@ -646,21 +642,12 @@ def parse_args(args=None):
              'This will result in installing from: {0}'.format(repo_url)
     )
 
-    # This group currently has only one, deprecated entry
-    # However, it has not been removed as offline install functionality is to
-    # be re-introduced later.
-    online_group = parser.add_mutually_exclusive_group()
     # Deprecated argument, used to print warning and allow us to cleanly
     # remove it in the future
-    online_group.add_argument(
+    parser.add_argument(
         '--forceonline',
         action='store_true',
         help=argparse.SUPPRESS,
-    )
-    online_group.add_argument(
-        '--force-online',
-        action='store_true',
-        help='Even if wheels are found locally, install from PyPI.',
     )
 
     # Non group arguments
@@ -824,7 +811,8 @@ def parse_args(args=None):
             parsed_args.pop(arg)
 
     # force_online is currently meaningless and should be discarded
-    parsed_args.pop('force_online')
+    if 'force_online' in parsed_args:
+        parsed_args.pop('force_online')
 
     # Process branch selection, if applicable
     if parsed_args['use_branch']:
