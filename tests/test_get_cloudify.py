@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ############
+from copy import copy
 import testtools
 import urllib
 import tempfile
@@ -215,13 +216,10 @@ class CliBuilderUnitTests(testtools.TestCase):
     @mock.patch('get-cloudify.CloudifyInstaller')
     @mock.patch(
         'get-cloudify.parse_args',
-        return_value=[
-            {
-                'quiet': False,
-                'verbose': False,
-            },
-            [],
-        ],
+        return_value={
+            'quiet': False,
+            'verbose': False,
+        },
     )
     def test_main_linux(self,
                         mock_parse_args,
@@ -249,13 +247,10 @@ class CliBuilderUnitTests(testtools.TestCase):
     @mock.patch('get-cloudify.CloudifyInstaller')
     @mock.patch(
         'get-cloudify.parse_args',
-        return_value=[
-            {
-                'quiet': False,
-                'verbose': False,
-            },
-            [],
-        ],
+        return_value={
+            'quiet': False,
+            'verbose': False,
+        },
     )
     def test_main_windows(self,
                           mock_parse_args,
@@ -283,13 +278,10 @@ class CliBuilderUnitTests(testtools.TestCase):
     @mock.patch('get-cloudify.CloudifyInstaller')
     @mock.patch(
         'get-cloudify.parse_args',
-        return_value=[
-            {
-                'quiet': False,
-                'verbose': False,
-            },
-            [],
-        ],
+        return_value={
+            'quiet': False,
+            'verbose': False,
+        },
     )
     def test_main_darwin(self,
                          mock_parse_args,
@@ -317,13 +309,10 @@ class CliBuilderUnitTests(testtools.TestCase):
     @mock.patch('get-cloudify.CloudifyInstaller')
     @mock.patch(
         'get-cloudify.parse_args',
-        return_value=[
-            {
-                'quiet': True,
-                'verbose': False,
-            },
-            [],
-        ],
+        return_value={
+            'quiet': True,
+            'verbose': False,
+        },
     )
     def test_main_quiet_logging(self,
                                 mock_parse_args,
@@ -351,13 +340,10 @@ class CliBuilderUnitTests(testtools.TestCase):
     @mock.patch('get-cloudify.CloudifyInstaller')
     @mock.patch(
         'get-cloudify.parse_args',
-        return_value=[
-            {
-                'quiet': False,
-                'verbose': True,
-            },
-            [],
-        ],
+        return_value={
+            'quiet': False,
+            'verbose': True,
+        },
     )
     def test_main_verbose_logging(self,
                                   mock_parse_args,
@@ -385,14 +371,11 @@ class CliBuilderUnitTests(testtools.TestCase):
     @mock.patch('get-cloudify.CloudifyInstaller')
     @mock.patch(
         'get-cloudify.parse_args',
-        return_value=[
-            {
-                'quiet': False,
-                'verbose': False,
-                'fake_arg': 'this',
-            },
-            [],
-        ],
+        return_value={
+            'quiet': False,
+            'verbose': False,
+            'fake_arg': 'this',
+        },
     )
     def test_main_parsed_args_used(self,
                                    mock_parse_args,
@@ -401,48 +384,6 @@ class CliBuilderUnitTests(testtools.TestCase):
                                    mock_darwin,
                                    mock_win,
                                    mock_linux):
-        # Original values will be restored by mock patch
-        self.get_cloudify.IS_LINUX = False
-        self.get_cloudify.IS_WIN = False
-        self.get_cloudify.IS_DARWIN = True
-
-        self.get_cloudify.main()
-
-        mock_parse_args.assert_called_once_with()
-        mock_log.setLevel.assert_called_once_with(logging.INFO)
-        mock_installer.assert_called_once_with(
-            fake_arg='this',
-        )
-        mock_installer().execute.assert_called_once_with()
-
-    @mock.patch('get-cloudify.IS_LINUX')
-    @mock.patch('get-cloudify.IS_WIN')
-    @mock.patch('get-cloudify.IS_DARWIN')
-    @mock.patch('get-cloudify.logger')
-    @mock.patch('get-cloudify.CloudifyInstaller')
-    @mock.patch(
-        'get-cloudify.parse_args',
-        return_value=[
-            {
-                'quiet': False,
-                'verbose': False,
-                'fake_arg': 'this',
-                'ignored_arg': 'that',
-                'also_ignored': 'other',
-            },
-            [
-                'ignored_arg',
-                'also_ignored',
-            ],
-        ],
-    )
-    def test_main_deprecated_not_passed(self,
-                                        mock_parse_args,
-                                        mock_installer,
-                                        mock_log,
-                                        mock_darwin,
-                                        mock_win,
-                                        mock_linux):
         # Original values will be restored by mock patch
         self.get_cloudify.IS_LINUX = False
         self.get_cloudify.IS_WIN = False
@@ -852,64 +793,272 @@ class TestArgParser(testtools.TestCase):
         self.get_cloudify = get_cloudify
         self.get_cloudify.IS_VIRTUALENV = False
 
-    def test_args_parser_linux(self):
+        self.expected_args = {
+            'verbose': False,
+            'quiet': False,
+            'version': None,
+            'pre': False,
+            'source': None,
+            'force': False,
+            'virtualenv': None,
+            'install_pip': False,
+            'install_virtualenv': False,
+            'with_requirements': None,
+            'upgrade': False,
+            'pip_args': None,
+        }
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    def test_expected_argsr_linux(self,
+                                  mock_linux,
+                                  mock_win,
+                                  mock_darwin):
+        # Original values will be restored by mock patch
         self.get_cloudify.IS_LINUX = True
         self.get_cloudify.IS_WIN = False
-        args, _ = self.get_cloudify.parse_args([])
-        self.assertNotIn('install_pycrypto', args)
-        self.assertIn('install_pythondev', args)
+        self.get_cloudify.IS_DARWIN = False
+        args = self.get_cloudify.parse_args([])
 
-    def test_args_parser_windows(self):
+        expected_args = copy(self.expected_args)
+        expected_args['install_pythondev'] = False
+
+        self.assertEquals(expected_args, args)
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    def test_expected_args_windows(self,
+                                   mock_linux,
+                                   mock_win,
+                                   mock_darwin):
+        # Original values will be restored by mock patch
         self.get_cloudify.IS_LINUX = False
         self.get_cloudify.IS_WIN = True
-        args, _ = self.get_cloudify.parse_args([])
-        self.assertIn('install_pycrypto', args)
-        self.assertNotIn('install_pythondev', args)
+        self.get_cloudify.IS_DARWIN = False
+        args = self.get_cloudify.parse_args([])
 
-    def test_default_args(self):
-        args, _ = self.get_cloudify.parse_args([])
-        self.assertFalse(args['force'])
-        self.assertFalse(args['forceonline'])
-        self.assertFalse(args['installpip'])
-        self.assertFalse(args['installvirtualenv'])
-        self.assertFalse(args['pre'])
-        self.assertFalse(args['quiet'])
-        self.assertFalse(args['verbose'])
-        self.assertIsNone(args['version'])
-        self.assertIsNone(args['virtualenv'])
+        expected_args = copy(self.expected_args)
+        expected_args['install_pycrypto'] = False
 
-    def test_args_chosen(self):
+        self.assertEquals(expected_args, args)
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    def test_expected_args_darwin(self,
+                                  mock_linux,
+                                  mock_win,
+                                  mock_darwin):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = False
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = True
+        args = self.get_cloudify.parse_args([])
+
+        self.assertEquals(self.expected_args, args)
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    def test_deprecated_withrequirements(self,
+                                         mock_log,
+                                         mock_linux,
+                                         mock_win,
+                                         mock_darwin):
+        # Original values will be restored by mock patch
         self.get_cloudify.IS_LINUX = True
-        set_args, _ = self.get_cloudify.parse_args(['-f',
-                                                    '--forceonline',
-                                                    '--installpip',
-                                                    '--virtualenv=venv_path',
-                                                    '--quiet',
-                                                    '--version=3.2',
-                                                    '--installpip',
-                                                    '--installpythondev'])
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        # Source required when using with-requirements
+        args = self.get_cloudify.parse_args([
+            '--source=notreal',
+            '--withrequirements=test',
+        ])
+
+        self.assertEquals(['test'], args['with_requirements'])
+        mock_log.warning.assert_called_once_with(
+            '--withrequirements is deprecated. Use --with-requirements. '
+            '--withrequirements will be removed in a future release.'
+        )
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    def test_deprecated_installvirtualenv(self,
+                                          mock_log,
+                                          mock_linux,
+                                          mock_win,
+                                          mock_darwin):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = True
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        args = self.get_cloudify.parse_args(['--installvirtualenv'])
+
+        self.assertTrue(args['install_virtualenv'])
+        mock_log.warning.assert_called_once_with(
+            '--installvirtualenv is deprecated. Use --install-virtualenv. '
+            '--installvirtualenv will be removed in a future release.'
+        )
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    def test_deprecated_installpip(self,
+                                   mock_log,
+                                   mock_linux,
+                                   mock_win,
+                                   mock_darwin):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = True
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        args = self.get_cloudify.parse_args(['--installpip'])
+
+        self.assertTrue(args['install_pip'])
+        mock_log.warning.assert_called_once_with(
+            '--installpip is deprecated. Use --install-pip. '
+            '--installpip will be removed in a future release.'
+        )
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    def test_deprecated_installpycrypto(self,
+                                        mock_log,
+                                        mock_linux,
+                                        mock_win,
+                                        mock_darwin):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = False
+        self.get_cloudify.IS_WIN = True
+        self.get_cloudify.IS_DARWIN = False
+
+        args = self.get_cloudify.parse_args(['--installpycrypto'])
+
+        self.assertTrue(args['install_pycrypto'])
+        mock_log.warning.assert_called_once_with(
+            '--installpycrypto is deprecated. Use --install-pycrypto. '
+            '--installpycrypto will be removed in a future release.'
+        )
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    def test_deprecated_installpythondev(self,
+                                         mock_log,
+                                         mock_linux,
+                                         mock_win,
+                                         mock_darwin):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = True
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        args = self.get_cloudify.parse_args(['--installpythondev'])
+
+        self.assertTrue(args['install_pythondev'])
+        mock_log.warning.assert_called_once_with(
+            '--installpythondev is deprecated. Use --install-pythondev. '
+            '--installpythondev will be removed in a future release.'
+        )
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    def test_deprecated_pythonpath(self,
+                                   mock_log,
+                                   mock_linux,
+                                   mock_win,
+                                   mock_darwin):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = True
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        args = self.get_cloudify.parse_args(['--pythonpath=test'])
+
+        self.assertEquals('test', args['python_path'])
+        mock_log.warning.assert_called_once_with(
+            '--pythonpath is deprecated. '
+            'To use a different interpreter, run this script with '
+            'your preferred interpreter and that interpreter will be '
+            'used.'
+        )
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    def test_deprecated_forceonline(self,
+                                    mock_log,
+                                    mock_linux,
+                                    mock_win,
+                                    mock_darwin):
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = True
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        args = self.get_cloudify.parse_args(['--forceonline'])
+
+        # This should currently be completely ignored
+        self.assertNotIn('force_online', args)
+        self.assertNotIn('forceonline', args)
+        mock_log.warning.assert_called_once_with(
+            '--forceonline is deprecated. '
+            'Online install is currently the only option, so this '
+            'argument will be ignored.'
+        )
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    def test_args_chosen(self,
+                         mock_linux,
+                         mock_win,
+                         mock_darwin):
+        """Check that parse_args actually sets arguments."""
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = True
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        set_args = self.get_cloudify.parse_args(['-f',
+                                                 '--virtualenv=venv_path',
+                                                 '--quiet',
+                                                 '--version=3.2',
+                                                 '--install-pip',
+                                                 '--install-pythondev'])
 
         self.assertTrue(set_args['force'])
-        self.assertTrue(set_args['force_online'])
         self.assertTrue(set_args['install_pip'])
         self.assertTrue(set_args['quiet'])
         self.assertEqual(set_args['version'], '3.2')
         self.assertEqual(set_args['virtualenv'], 'venv_path')
 
-    def test_mutually_exclude_groups(self):
-        # # test with args that do not go together
-        ex = self.assertRaises(
-            SystemExit, self.get_cloudify.parse_args, ['--version', '--pre'])
-        self.assertEqual(2, ex.message)
-
+    def test_mutually_exclusive_verbosity(self):
         ex = self.assertRaises(
             SystemExit, self.get_cloudify.parse_args, ['--verbose', '--quiet'])
-        self.assertEqual(2, ex.message)
+        exit_code = ex.message
+        self.assertEqual(2, exit_code)
 
+    def test_mutually_exclusive_versions(self):
         ex = self.assertRaises(
-            SystemExit, self.get_cloudify.parse_args,
-            ['--wheels_path', '--force_online'])
-        self.assertEqual(2, ex.message)
+            SystemExit, self.get_cloudify.parse_args, ['--version', '--pre'])
+        exit_code = ex.message
+        self.assertEqual(2, exit_code)
 
 
 class ArgsObject(object):

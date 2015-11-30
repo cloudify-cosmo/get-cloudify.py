@@ -783,7 +783,10 @@ def parse_args(args=None):
         'installpythondev': 'install_pythondev',
     }
     for deprecated, new_value in deprecations.items():
-        if new_value in parsed_args and parsed_args[deprecated]:
+        if deprecated in parsed_args and parsed_args[deprecated]:
+            # Make sure we use the value that was set
+            parsed_args[new_value] = parsed_args[deprecated]
+            # ...then complain:
             if deprecated == 'pythonpath':
                 # Special case as pythonpath is being fully removed
                 logger.warning(
@@ -793,6 +796,8 @@ def parse_args(args=None):
                     'used.'
                 )
             elif deprecated == 'forceonline':
+                # Special case as we currently ignore this.
+                # It will be removed below
                 logger.warning(
                     '--forceonline is deprecated. '
                     'Online install is currently the only option, so this '
@@ -806,8 +811,14 @@ def parse_args(args=None):
                         newvar=new_value.replace('_', '-'),
                     )
                 )
-            # Now make sure we use the value that was set
-            parsed_args[new_value] = parsed_args[deprecated]
+
+    # Deprecated args should now be discarded
+    for arg in deprecations.keys():
+        if arg in parsed_args.keys():
+            parsed_args.pop(arg)
+
+    # force_online is currently meaningless and should be discarded
+    parsed_args.pop('force_online')
 
     # Process branch selection, if applicable
     if parsed_args['use_branch']:
@@ -838,8 +849,7 @@ def parse_args(args=None):
             '--with-requirements was omitted. You may need to retry using '
             '--with-requirements if the installation fails.'
         )
-
-    return parsed_args, deprecations.keys()
+    return parsed_args
 
 
 def main():
@@ -849,7 +859,7 @@ def main():
             status='unsupported_platform',
         )
 
-    args, deprecated = parse_args()
+    args = parse_args()
     if args['quiet']:
         logger.setLevel(logging.ERROR)
     elif args['verbose']:
@@ -858,7 +868,6 @@ def main():
         logger.setLevel(logging.INFO)
 
     excluded_args = ['quiet', 'verbose']
-    excluded_args.extend(deprecated)
     for arg in excluded_args:
         if arg in args:
             args.pop(arg)
