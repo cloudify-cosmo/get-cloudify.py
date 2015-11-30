@@ -1116,6 +1116,62 @@ class TestArgParser(testtools.TestCase):
     @mock.patch('get-cloudify.IS_LINUX')
     @mock.patch('get-cloudify.IS_WIN')
     @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    def test_source_with_no_requirements(self,
+                                         mock_log,
+                                         mock_linux,
+                                         mock_win,
+                                         mock_darwin):
+        """source should warn if called without requirements"""
+        # It's quite likely to be an error for anything but the most trivial
+        # changes
+
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = True
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        self.get_cloudify.parse_args([
+            '--source=test',
+        ])
+
+        mock_log.warning.assert_called_once_with(
+            'A source URL or branch was specified, but '
+            '--with-requirements was omitted. You may need to retry using '
+            '--with-requirements if the installation fails.'
+        )
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    def test_branch_with_no_requirements(self,
+                                         mock_log,
+                                         mock_linux,
+                                         mock_win,
+                                         mock_darwin):
+        """use_branch should warn if called without requirements"""
+        # It's quite likely to be an error for anything but the most trivial
+        # changes
+
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = True
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        self.get_cloudify.parse_args([
+            '--use-branch=test',
+        ])
+
+        mock_log.warning.assert_called_once_with(
+            'A source URL or branch was specified, but '
+            '--with-requirements was omitted. You may need to retry using '
+            '--with-requirements if the installation fails.'
+        )
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
     @mock.patch('get-cloudify.argparse.ArgumentParser.error',
                 side_effect=SystemExit)
     def test_use_branch_invalid_format(self,
