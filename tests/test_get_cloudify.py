@@ -14,17 +14,17 @@
 # limitations under the License.
 ############
 from copy import copy
+import importlib
+import logging
+import mock
+import os
+import shutil
+from StringIO import StringIO
+import sys
+import tarfile
+import tempfile
 import testtools
 import urllib
-import tempfile
-from StringIO import StringIO
-import mock
-import shutil
-import os
-import tarfile
-import logging
-import importlib
-import sys
 
 sys.path.append("../")
 
@@ -71,7 +71,7 @@ class CliBuilderUnitTests(testtools.TestCase):
             raise AssertionError('url {} is not valid.'.format(url))
 
     def test_run_valid_command(self):
-        proc = self.get_cloudify.run('echo Hi!')
+        proc = self.get_cloudify._run('echo Hi!')
         self.assertEqual(proc.returncode, 0, 'process execution failed')
 
     def test_run_invalid_command(self):
@@ -79,7 +79,7 @@ class CliBuilderUnitTests(testtools.TestCase):
         # replacing builder stdout
         self.get_cloudify.sys.stdout = builder_stdout
         cmd = 'this is not a valid command'
-        proc = self.get_cloudify.run(cmd)
+        proc = self.get_cloudify._run(cmd)
         self.assertIsNot(proc.returncode, 0, 'command \'{}\' execution was '
                                              'expected to fail'.format(cmd))
 
@@ -185,7 +185,7 @@ class CliBuilderUnitTests(testtools.TestCase):
     @mock.patch('get-cloudify.IS_LINUX')
     @mock.patch('get-cloudify.IS_WIN')
     @mock.patch('get-cloudify.IS_DARWIN')
-    @mock.patch('get-cloudify.exit',
+    @mock.patch('get-cloudify._exit',
                 side_effect=SystemExit)
     @mock.patch('get-cloudify.PLATFORM')
     def test_main_unsupported_os(self,
@@ -439,7 +439,8 @@ class CliBuilderUnitTests(testtools.TestCase):
             },
         )
 
-        self.get_cloudify.drop_root_privileges()
+        self.get_cloudify._drop_root_privileges()
+
         mock_log.info.assert_called_once_with('Dropping root permissions...')
         mock_os.setegid.assert_called_once_with(12345)
         mock_os.seteuid.assert_called_once_with(54321)
@@ -456,7 +457,8 @@ class CliBuilderUnitTests(testtools.TestCase):
             return_value={},
         )
 
-        self.get_cloudify.drop_root_privileges()
+        self.get_cloudify._drop_root_privileges()
+
         mock_log.info.assert_called_once_with('Dropping root permissions...')
         mock_os.setegid.assert_called_once_with(0)
         mock_os.seteuid.assert_called_once_with(0)
@@ -470,7 +472,8 @@ class CliBuilderUnitTests(testtools.TestCase):
                                      mock_root_check):
         mock_root_check.return_value = False
 
-        self.get_cloudify.drop_root_privileges()
+        self.get_cloudify._drop_root_privileges()
+
         self.assertFalse(mock_log.info.called)
         self.assertFalse(mock_os.setegid.called)
         self.assertFalse(mock_os.seteuid.called)
@@ -480,7 +483,7 @@ class CliBuilderUnitTests(testtools.TestCase):
     def test_exit_unsupported_os(self,
                                  mock_log,
                                  mock_exit):
-        self.get_cloudify.exit(
+        self.get_cloudify._exit(
             message='Unsupported OS',
             status='unsupported_platform',
         )
@@ -493,7 +496,7 @@ class CliBuilderUnitTests(testtools.TestCase):
     def test_exit_venv_create_fail(self,
                                    mock_log,
                                    mock_exit):
-        self.get_cloudify.exit(
+        self.get_cloudify._exit(
             message='Venv creation failure',
             status='virtualenv_creation_failure',
         )
@@ -506,7 +509,7 @@ class CliBuilderUnitTests(testtools.TestCase):
     def test_exit_dep_download_fail(self,
                                     mock_log,
                                     mock_exit):
-        self.get_cloudify.exit(
+        self.get_cloudify._exit(
             message='Download failure',
             status='dependency_download_failure',
         )
@@ -519,7 +522,7 @@ class CliBuilderUnitTests(testtools.TestCase):
     def test_exit_dep_extract_fail(self,
                                    mock_log,
                                    mock_exit):
-        self.get_cloudify.exit(
+        self.get_cloudify._exit(
             message='Extraction failure',
             status='dependency_extraction_failure',
         )
@@ -532,7 +535,7 @@ class CliBuilderUnitTests(testtools.TestCase):
     def test_exit_dep_install_fail(self,
                                    mock_log,
                                    mock_exit):
-        self.get_cloudify.exit(
+        self.get_cloudify._exit(
             message='Install failure',
             status='dependency_installation_failure',
         )
@@ -545,7 +548,7 @@ class CliBuilderUnitTests(testtools.TestCase):
     def test_exit_dep_unsupported_distro(self,
                                          mock_log,
                                          mock_exit):
-        self.get_cloudify.exit(
+        self.get_cloudify._exit(
             message='Wrong distro',
             status='dependency_unsupported_on_distribution',
         )
@@ -558,7 +561,7 @@ class CliBuilderUnitTests(testtools.TestCase):
     def test_exit_cloudify_already_uninstalled(self,
                                                mock_log,
                                                mock_exit):
-        self.get_cloudify.exit(
+        self.get_cloudify._exit(
             message='Cloudify already here',
             status='cloudify_already_installed',
         )
@@ -566,9 +569,9 @@ class CliBuilderUnitTests(testtools.TestCase):
         mock_log.error.assert_called_once_with('Cloudify already here')
         mock_exit.assert_called_once_with(230)
 
-    @mock.patch('get-cloudify.exit',
+    @mock.patch('get-cloudify._exit',
                 side_effect=SystemExit)
-    @mock.patch('get-cloudify.download_file',
+    @mock.patch('get-cloudify._download_file',
                 side_effect=StandardError('Boom!'))
     @mock.patch('get-cloudify.CloudifyInstaller.is_installed',
                 return_value=False)
@@ -589,9 +592,9 @@ class CliBuilderUnitTests(testtools.TestCase):
             status='dependency_download_failure',
         )
 
-    @mock.patch('get-cloudify.exit',
+    @mock.patch('get-cloudify._exit',
                 side_effect=SystemExit)
-    @mock.patch('get-cloudify.download_file',
+    @mock.patch('get-cloudify._download_file',
                 return_value=None)
     @mock.patch('get-cloudify.CloudifyInstaller.is_installed',
                 return_value=False)
@@ -613,12 +616,12 @@ class CliBuilderUnitTests(testtools.TestCase):
             status='dependency_installation_failure',
         )
 
-    @mock.patch('get-cloudify.exit',
+    @mock.patch('get-cloudify._exit',
                 side_effect=SystemExit)
     def test_make_virtualenv_fail(self, mock_exit):
         self.assertRaises(
             SystemExit,
-            self.get_cloudify.make_virtualenv,
+            self.get_cloudify._make_virtualenv,
             '/path/to/dir',
             'non_existing_path',
         )
@@ -628,12 +631,12 @@ class CliBuilderUnitTests(testtools.TestCase):
             status='virtualenv_creation_failure',
         )
 
-    @mock.patch('get-cloudify.exit',
+    @mock.patch('get-cloudify._exit',
                 side_effect=SystemExit)
     def test_install_non_existing_module(self, mock_exit):
         self.assertRaises(
             SystemExit,
-            self.get_cloudify.install_package,
+            self.get_cloudify._install_package,
             'nonexisting_module',
         )
         mock_exit.assert_called_once_with(
@@ -642,7 +645,7 @@ class CliBuilderUnitTests(testtools.TestCase):
         )
 
     @mock.patch('get-cloudify.logger')
-    @mock.patch('get-cloudify.run')
+    @mock.patch('get-cloudify._run')
     @mock.patch('get-cloudify.IS_VIRTUALENV')
     def test_install_in_existing_venv_no_path(self,
                                               mock_is_venv,
@@ -655,7 +658,7 @@ class CliBuilderUnitTests(testtools.TestCase):
             return_value=0,
         )
 
-        self.get_cloudify.install_package('test-package')
+        self.get_cloudify._install_package('test-package')
 
         expected_info_log_calls = [
             mock.call('Installing test-package...'),
@@ -668,7 +671,7 @@ class CliBuilderUnitTests(testtools.TestCase):
         )
 
     @mock.patch('get-cloudify.logger')
-    @mock.patch('get-cloudify.run')
+    @mock.patch('get-cloudify._run')
     @mock.patch('get-cloudify.IS_VIRTUALENV')
     @mock.patch('get-cloudify._get_env_bin_path',
                 return_value='/my/venv/bin')
@@ -684,8 +687,8 @@ class CliBuilderUnitTests(testtools.TestCase):
             return_value=0,
         )
 
-        self.get_cloudify.install_package('test-package',
-                                          virtualenv_path='/my/venv')
+        self.get_cloudify._install_package('test-package',
+                                           virtualenv_path='/my/venv')
 
         mock_log.info.assert_called_once_with(
             'Installing test-package...',
@@ -695,7 +698,7 @@ class CliBuilderUnitTests(testtools.TestCase):
         )
 
     @mock.patch('get-cloudify.logger')
-    @mock.patch('get-cloudify.run')
+    @mock.patch('get-cloudify._run')
     @mock.patch('get-cloudify.IS_VIRTUALENV')
     @mock.patch('get-cloudify._get_env_bin_path',
                 return_value='/my/venv/bin')
@@ -711,8 +714,8 @@ class CliBuilderUnitTests(testtools.TestCase):
             return_value=0,
         )
 
-        self.get_cloudify.install_package('test-package',
-                                          virtualenv_path='/my/venv')
+        self.get_cloudify._install_package('test-package',
+                                           virtualenv_path='/my/venv')
 
         mock_log.info.assert_called_once_with(
             'Installing test-package...',
@@ -722,7 +725,7 @@ class CliBuilderUnitTests(testtools.TestCase):
         )
 
     def test_get_os_props(self):
-        distro = self.get_cloudify.get_os_props()[0]
+        distro = self.get_cloudify._get_os_props()[0]
         distros = ('ubuntu', 'redhat', 'debian', 'fedora', 'centos',
                    'archlinux')
         if distro.lower() not in distros:
@@ -732,7 +735,7 @@ class CliBuilderUnitTests(testtools.TestCase):
     def test_download_file(self):
         self.get_cloudify.VERBOSE = True
         tmp_file = tempfile.NamedTemporaryFile(delete=True)
-        self.get_cloudify.download_file('http://www.google.com', tmp_file.name)
+        self.get_cloudify._download_file('http://www.google.com', tmp_file.name)
         with open(tmp_file.name) as f:
             content = f.readlines()
             self.assertIsNotNone(content)
@@ -741,7 +744,7 @@ class CliBuilderUnitTests(testtools.TestCase):
         tmp_venv = tempfile.mkdtemp()
         installer = self.get_cloudify.CloudifyInstaller(virtualenv=tmp_venv)
         try:
-            self.get_cloudify.make_virtualenv(tmp_venv, 'python')
+            self.get_cloudify._make_virtualenv(tmp_venv, 'python')
             self.assertFalse(
                 installer.check_cloudify_installed()
             )
@@ -751,7 +754,7 @@ class CliBuilderUnitTests(testtools.TestCase):
     def test_check_cloudify_installed_in_venv(self):
         tmp_venv = tempfile.mkdtemp()
         try:
-            self.get_cloudify.make_virtualenv(tmp_venv, 'python')
+            self.get_cloudify._make_virtualenv(tmp_venv, 'python')
             installer = get_cloudify.CloudifyInstaller(virtualenv=tmp_venv)
             installer.execute()
             self.assertTrue(
@@ -764,14 +767,14 @@ class CliBuilderUnitTests(testtools.TestCase):
         def get(url, destination):
             return self._create_dummy_requirements_tar(url, destination)
 
-        self.get_cloudify.download_file = get
+        self.get_cloudify._download_file = get
         try:
             installer = self.get_cloudify.CloudifyInstaller()
             req_list = installer._get_default_requirement_files('null')
             self.assertEquals(len(req_list), 1)
             self.assertIn('dev-requirements.txt', req_list[0])
         finally:
-            self.get_cloudify.download_file = get_cloudify.download_file
+            self.get_cloudify._download_file = get_cloudify._download_file
 
     def test_get_requirements_from_source_path(self):
         tempdir = tempfile.mkdtemp()

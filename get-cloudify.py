@@ -133,7 +133,7 @@ PROCESS_POLLING_INTERVAL = 0.1
 logger = None
 
 
-def init_logger(logger_name):
+def _init_logger(logger_name):
     logger = logging.getLogger(logger_name)
     handler = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter(fmt='%(asctime)s [%(levelname)s] '
@@ -145,7 +145,7 @@ def init_logger(logger_name):
     return logger
 
 
-def exit(message, status):
+def _exit(message, status):
     exit_codes = {
         'unsupported_platform': 200,
         'virtualenv_creation_failure': 210,
@@ -160,7 +160,7 @@ def exit(message, status):
     sys.exit(exit_codes[status])
 
 
-def run(cmd, suppress_errors=False):
+def _run(cmd, suppress_errors=False):
     """Executes a command
     """
     logger.debug('Executing: {0}...'.format(cmd))
@@ -170,8 +170,8 @@ def run(cmd, suppress_errors=False):
 
     stderr_log_level = logging.NOTSET if suppress_errors else logging.ERROR
 
-    stdout_thread = PipeReader(proc.stdout, proc, logger, logging.DEBUG)
-    stderr_thread = PipeReader(proc.stderr, proc, logger, stderr_log_level)
+    stdout_thread = _PipeReader(proc.stdout, proc, logger, logging.DEBUG)
+    stderr_thread = _PipeReader(proc.stderr, proc, logger, stderr_log_level)
 
     stdout_thread.start()
     stderr_thread.start()
@@ -192,7 +192,7 @@ def _is_root():
     return os.getuid() == 0
 
 
-def drop_root_privileges():
+def _drop_root_privileges():
     """Drop root privileges
 
     This is used so that when installing cloudify within a virtualenv
@@ -209,23 +209,23 @@ def drop_root_privileges():
     os.seteuid(int(os.environ.get('SUDO_UID', 0)))
 
 
-def make_virtualenv(virtualenv_dir, python_path):
+def _make_virtualenv(virtualenv_dir, python_path):
     """This will create a virtualenv. If no `python_path` is supplied,
     will assume that `python` is in path. This default assumption is provided
     via the argument parser.
     """
     logger.info('Creating Virtualenv {0}...'.format(virtualenv_dir))
-    result = run('virtualenv -p {0} {1}'.format(python_path, virtualenv_dir))
+    result = _run('virtualenv -p {0} {1}'.format(python_path, virtualenv_dir))
     if not result.returncode == 0:
-        exit(
+        _exit(
             message='Could not create virtualenv: {0}'.format(virtualenv_dir),
             status='virtualenv_creation_failure',
         )
 
 
-def install_package(package, version=False, pre=False, virtualenv_path=False,
-                    requirement_files=None, upgrade=False,
-                    pip_args=''):
+def _install_package(package, version=False, pre=False, virtualenv_path=False,
+                     requirement_files=None, upgrade=False,
+                     pip_args=''):
     """This will install a Python package.
 
     Can specify a specific version.
@@ -252,16 +252,16 @@ def install_package(package, version=False, pre=False, virtualenv_path=False,
         pip_cmd.append('--pre')
     if upgrade:
         pip_cmd.append('--upgrade')
-    result = run(' '.join(pip_cmd))
+    result = _run(' '.join(pip_cmd))
     if not result.returncode == 0:
         logger.error(result.aggr_stdout)
-        exit(
+        _exit(
             message='Could not install package: {0}.'.format(package),
             status='dependency_installation_failure',
         )
 
 
-def untar_requirement_files(archive, destination):
+def _untar_requirement_files(archive, destination):
     """This will extract requirement files from an archive.
     """
     with tarfile.open(name=archive) as tar:
@@ -271,7 +271,7 @@ def untar_requirement_files(archive, destination):
         tar.extractall(path=destination, members=req_files)
 
 
-def download_file(url, destination):
+def _download_file(url, destination):
     logger.info('Downloading {0} to {1}'.format(url, destination))
     final_url = urllib.urlopen(url).geturl()
     if final_url != url:
@@ -280,7 +280,7 @@ def download_file(url, destination):
     f.retrieve(final_url, destination)
 
 
-def get_os_props():
+def _get_os_props():
     distro, _, release = platform.linux_distribution(
         full_distribution_name=False)
     return distro, release
@@ -294,7 +294,9 @@ def _get_env_bin_path(env_path):
     return os.path.join(env_path, 'scripts' if IS_WIN else 'bin')
 
 
-class PipeReader(Thread):
+# Underscored as not part of public interface
+# Looks ugly, but is at least explicit
+class _PipeReader(Thread):
     def __init__(self, fd, proc, logger, log_level):
         Thread.__init__(self)
         self.fd = fd
@@ -375,7 +377,7 @@ class CloudifyInstaller():
                 'is not supported.'
             )
 
-        os_props = get_os_props()
+        os_props = _get_os_props()
         self.distro = os_distro or os_props[0].lower()
         self.release = os_release or os_props[1].lower()
 
@@ -409,11 +411,11 @@ class CloudifyInstaller():
         if (IS_VIRTUALENV or self.virtualenv) and not IS_WIN:
             # drop root permissions so that installation is done using the
             # current user.
-            drop_root_privileges()
+            _drop_root_privileges()
         if self.virtualenv:
             if not os.path.isfile(os.path.join(
                     env_bin_path, ('activate.bat' if IS_WIN else 'activate'))):
-                make_virtualenv(self.virtualenv, self.python_path)
+                _make_virtualenv(self.virtualenv, self.python_path)
 
         if IS_WIN and (self.force or self.install_pycrypto):
             self.get_pycrypto(self.virtualenv)
@@ -424,13 +426,13 @@ class CloudifyInstaller():
             self.with_requirements = self.with_requirements \
                 or self._get_default_requirement_files(self.source)
 
-        install_package(package=package,
-                        version=self.version,
-                        pre=self.pre,
-                        pip_args=self.pip_args,
-                        virtualenv_path=self.virtualenv,
-                        requirement_files=self.with_requirements,
-                        upgrade=self.upgrade)
+        _install_package(package=package,
+                         version=self.version,
+                         pre=self.pre,
+                         pip_args=self.pip_args,
+                         virtualenv_path=self.virtualenv,
+                         requirement_files=self.with_requirements,
+                         upgrade=self.upgrade)
 
         if self.virtualenv:
             activate_path = os.path.join(env_bin_path, 'activate')
@@ -457,7 +459,7 @@ class CloudifyInstaller():
     def get_virtualenv(self):
         if not self.is_installed('virtualenv'):
             logger.info('Installing virtualenv...')
-            install_package('virtualenv', pip_args=self.pip_args)
+            _install_package('virtualenv', pip_args=self.pip_args)
         else:
             logger.info('virtualenv is already installed in the path.')
 
@@ -468,18 +470,18 @@ class CloudifyInstaller():
                 tempdir = tempfile.mkdtemp()
                 get_pip_path = os.path.join(tempdir, 'get-pip.py')
                 try:
-                    download_file(PIP_URL, get_pip_path)
+                    _download_file(PIP_URL, get_pip_path)
                 except StandardError as e:
-                    exit(
+                    _exit(
                         message='Failed pip download from {0}. ({1})'.format(
                             PIP_URL, e.message
                         ),
                         status='dependency_download_failure',
                     )
-                result = run('{0} {1}'.format(
+                result = _run('{0} {1}'.format(
                     self.python_path, get_pip_path))
                 if not result.returncode == 0:
-                    exit(
+                    _exit(
                         message='Could not install pip',
                         status='dependency_installation_failure',
                     )
@@ -498,17 +500,17 @@ class CloudifyInstaller():
             archive = os.path.join(tempdir, 'cli_source')
             # TODO: need to handle deletion of the temp source dir
             try:
-                download_file(source, archive)
+                _download_file(source, archive)
             except Exception as ex:
-                exit(
+                _exit(
                     message='Could not download {0} ({1})'.format(
                         source, str(ex)),
                     status='dependency_download_failure',
                 )
             try:
-                untar_requirement_files(archive, tempdir)
+                _untar_requirement_files(archive, tempdir)
             except Exception as ex:
-                exit(
+                _exit(
                     message='Could not extract {0} ({1})'.format(
                         archive, str(ex)),
                     status='dependency_extraction_failure',
@@ -540,12 +542,12 @@ class CloudifyInstaller():
             logger.info('python-dev package not required on Darwin.')
             return
         else:
-            exit(
+            _exit(
                 message='python-dev package installation not supported '
                         'in current distribution.',
                 status='dependency_unsupported_on_distribution',
             )
-        run(cmd)
+        _run(cmd)
 
     # Windows only
     def get_pycrypto(self, virtualenv_path):
@@ -565,7 +567,7 @@ class CloudifyInstaller():
         cmd = 'easy_install {0}'.format(PYCR32_URL if is_pyx32 else PYCR64_URL)
         if virtualenv_path:
             cmd = os.path.join(_get_env_bin_path(virtualenv_path), cmd)
-        run(cmd)
+        _run(cmd)
 
     def handle_upgrade(self):
         if self.check_cloudify_installed():
@@ -576,14 +578,14 @@ class CloudifyInstaller():
                 logger.warn('If your previous attempt to install failed, '
                             'cloudify may be partially installed. You can '
                             "'upgrade' to fix this.")
-                exit(
+                _exit(
                     message='Use the --upgrade flag to upgrade.',
                     status='cloudify_already_installed',
                 )
 
     def check_cloudify_installed(self):
         if self.virtualenv:
-            result = run(
+            result = _run(
                 os.path.join(_get_env_bin_path(self.virtualenv),
                              'python -c "import cloudify"'),
                 suppress_errors=True)
@@ -851,7 +853,7 @@ def parse_args(args=None):
 
 def main():
     if not (IS_LINUX or IS_DARWIN or IS_WIN):
-        exit(
+        _exit(
             message='Platform {0} not supported.'.format(PLATFORM),
             status='unsupported_platform',
         )
@@ -871,7 +873,7 @@ def main():
     installer = CloudifyInstaller(**args)
     installer.execute()
 
-logger = init_logger(__file__)
+logger = _init_logger(__file__)
 
 
 if __name__ == '__main__':

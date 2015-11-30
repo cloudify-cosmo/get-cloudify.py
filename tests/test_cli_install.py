@@ -51,7 +51,7 @@ class CliInstallTests(testtools.TestCase):
             self.install_cloudify(install_args)
             cfy_path = os.path.join(
                 self.get_cloudify._get_env_bin_path(tempdir), 'cfy')
-            proc = self.get_cloudify.run('{0} --version'.format(cfy_path))
+            proc = self.get_cloudify._run('{0} --version'.format(cfy_path))
             self.assertIn('Cloudify CLI 3', proc.aggr_stderr)
         finally:
             shutil.rmtree(tempdir)
@@ -71,7 +71,7 @@ class CliInstallTests(testtools.TestCase):
             self.install_cloudify(install_args)
             cfy_path = os.path.join(
                 self.get_cloudify._get_env_bin_path(tempdir), 'cfy')
-            proc = self.get_cloudify.run('{0} --version'.format(cfy_path))
+            proc = self.get_cloudify._run('{0} --version'.format(cfy_path))
             self.assertIn('Cloudify CLI 3', proc.aggr_stderr)
         finally:
             shutil.rmtree(tempdir)
@@ -91,7 +91,7 @@ class CliInstallTests(testtools.TestCase):
         finally:
             shutil.rmtree(tempdir)
 
-    @mock.patch('get-cloudify.exit',
+    @mock.patch('get-cloudify._exit',
                 side_effect=SystemExit)
     def test_cli_installed_and_no_upgrade(self, mock_exit):
         tempdir = tempfile.mkdtemp()
@@ -124,26 +124,25 @@ class CliInstallTests(testtools.TestCase):
             self.install_cloudify(install_args)
             cfy_path = os.path.join(
                 self.get_cloudify._get_env_bin_path(tempdir), 'cfy')
-            proc = self.get_cloudify.run('{0} --version'.format(cfy_path))
+            proc = self.get_cloudify._run('{0} --version'.format(cfy_path))
             self.assertIn('Cloudify CLI 3.2', proc.aggr_stderr)
         finally:
             shutil.rmtree(tempdir)
 
-    # TODO: this test is important.. but it's currently hard to test this
-    # while a --pre version isn't deployed to PyPI. We need to come up
-    # with a workaround.
-    # def test_cli_install_pre(self):
-    #     tempdir = tempfile.mkdtemp()
-    #     install_args = {
-    #         'virtualenv': tempdir,
-    #         'pre': True
-    #     }
-    #     try:
-    #         self.install_cloudify(install_args)
-    #         cfy_path = os.path.join(
-    #             self.get_cloudify._get_env_bin_path(tempdir), 'cfy')
-    #         proc = self.get_cloudify.run('{0} --version'.format(cfy_path))
-    #         self.assertIn('Cloudify CLI 3', proc.aggr_stderr)
-    #         assert 'm' in proc.aggr_stderr or 'rc' in proc.aggr_stderr
-    #     finally:
-    #         shutil.rmtree(tempdir)
+    # Note: This test WILL fail when there is no PRE version (e.g. just after
+    # a major version is released)
+    def test_cli_install_pre(self):
+        tempdir = tempfile.mkdtemp()
+        install_args = {
+            'virtualenv': tempdir,
+            'pre': True
+        }
+        try:
+            self.install_cloudify(install_args)
+            cfy_path = os.path.join(
+                self.get_cloudify._get_env_bin_path(tempdir), 'cfy')
+            proc = self.get_cloudify._run('{0} --version'.format(cfy_path))
+            self.assertIn('Cloudify CLI 3', proc.aggr_stderr)
+            assert 'm' in proc.aggr_stderr or 'rc' in proc.aggr_stderr
+        finally:
+            shutil.rmtree(tempdir)
