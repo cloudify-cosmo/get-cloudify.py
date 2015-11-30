@@ -808,6 +808,10 @@ class TestArgParser(testtools.TestCase):
             'pip_args': None,
         }
 
+        self.expected_repo_url = \
+            'https://github.com/{user}/cloudify-cli/archive/{branch}.tar.gz'
+        self.expected_repo_default_user = 'cloudify-cosmo'
+
     @mock.patch('get-cloudify.IS_LINUX')
     @mock.patch('get-cloudify.IS_WIN')
     @mock.patch('get-cloudify.IS_DARWIN')
@@ -1048,17 +1052,197 @@ class TestArgParser(testtools.TestCase):
         self.assertEqual(set_args['version'], '3.2')
         self.assertEqual(set_args['virtualenv'], 'venv_path')
 
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.argparse.ArgumentParser.error',
+                side_effect=SystemExit)
+    def test_with_requirements_alone_fails(self,
+                                           mock_parse_error,
+                                           mock_linux,
+                                           mock_win,
+                                           mock_darwin):
+        """with_requirements should fail when used alone"""
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = True
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        self.assertRaises(
+            SystemExit,
+            self.get_cloudify.parse_args,
+            ['--with-requirements=test'],
+        )
+
+        mock_parse_error.assert_called_once_with(
+            '--source or --use-branch is required when '
+            'calling with --with-requirements.'
+        )
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    def test_with_requirements_and_use_branch(self,
+                                              mock_linux,
+                                              mock_win,
+                                              mock_darwin):
+        """with_requirements with use_branch should not fail"""
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = True
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        # No need to assert, we're just happy not to have errors
+        self.get_cloudify.parse_args(['--use-branch=test',
+                                      '--with-requirements=test'])
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    def test_with_requirements_and_source(self,
+                                          mock_linux,
+                                          mock_win,
+                                          mock_darwin):
+        """with_requirements with source should not fail"""
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = True
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        # No need to assert, we're just happy not to have errors
+        self.get_cloudify.parse_args(['--source=test',
+                                      '--with-requirements=test'])
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.argparse.ArgumentParser.error',
+                side_effect=SystemExit)
+    def test_use_branch_invalid_format(self,
+                                       mock_parse_error,
+                                       mock_linux,
+                                       mock_win,
+                                       mock_darwin):
+        """use_branch should not work with more than one slash"""
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = True
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        self.assertRaises(
+            SystemExit,
+            self.get_cloudify.parse_args,
+            ['--use-branch=test/this/fails'],
+        )
+
+        mock_parse_error.assert_called_once_with(
+            '--use-branch should be specified either as '
+            '<branch> or as <user>/<branch>. '
+            'Too many "/" found in arguments.'
+        )
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    @mock.patch('get-cloudify.logger')
+    def test_use_branch_just_branch(self,
+                                    mock_log,
+                                    mock_linux,
+                                    mock_win,
+                                    mock_darwin):
+        """use_branch without slash should just set branch"""
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = True
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        args = self.get_cloudify.parse_args([
+            '--use-branch=test',
+        ])
+
+        expected_repo_url = self.expected_repo_url.format(
+            user=self.expected_repo_default_user,
+            branch='test',
+        )
+
+        self.assertEquals(expected_repo_url, args['source'])
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    def test_use_branch_user_and_branch(self,
+                                        mock_linux,
+                                        mock_win,
+                                        mock_darwin):
+        """use_branch with slash should set user and branch"""
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = True
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        args = self.get_cloudify.parse_args([
+            '--use-branch=user/branch',
+        ])
+
+        expected_repo_url = self.expected_repo_url.format(
+            user='user',
+            branch='branch',
+        )
+
+        self.assertEquals(expected_repo_url, args['source'])
+
     def test_mutually_exclusive_verbosity(self):
         ex = self.assertRaises(
             SystemExit, self.get_cloudify.parse_args, ['--verbose', '--quiet'])
         exit_code = ex.message
         self.assertEqual(2, exit_code)
 
-    def test_mutually_exclusive_versions(self):
+    def test_mutually_exclusive_pre_version(self):
         ex = self.assertRaises(
             SystemExit, self.get_cloudify.parse_args, ['--version', '--pre'])
         exit_code = ex.message
         self.assertEqual(2, exit_code)
+
+    def test_mutually_exclusive_version_source(self):
+        ex = self.assertRaises(
+            SystemExit,
+            self.get_cloudify.parse_args,
+            ['--version', '--source=test'],
+        )
+        exit_code = ex.message
+        self.assertEqual(2, exit_code)
+
+    def test_mutually_exclusive_pre_source(self):
+        ex = self.assertRaises(
+            SystemExit,
+            self.get_cloudify.parse_args,
+            ['--pre', '--source=test'],
+        )
+        exit_code = ex.message
+        self.assertEqual(2, exit_code)
+
+    @mock.patch('get-cloudify.IS_LINUX')
+    @mock.patch('get-cloudify.IS_WIN')
+    @mock.patch('get-cloudify.IS_DARWIN')
+    def test_listvar_with_requirements(self,
+                                       mock_linux,
+                                       mock_win,
+                                       mock_darwin):
+        """We are expecting to be able to provide multiple requirements"""
+        # Original values will be restored by mock patch
+        self.get_cloudify.IS_LINUX = True
+        self.get_cloudify.IS_WIN = False
+        self.get_cloudify.IS_DARWIN = False
+
+        args = self.get_cloudify.parse_args([
+            '--source=requiredwithargs',
+            '--with-requirements', 'test.txt', 'test2.txt',
+        ])
+
+        self.assertEquals(
+            ['test.txt', 'test2.txt'],
+            args['with_requirements'],
+        )
 
 
 class ArgsObject(object):

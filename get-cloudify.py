@@ -225,7 +225,7 @@ def make_virtualenv(virtualenv_dir, python_path):
 
 def install_package(package, version=False, pre=False, virtualenv_path=False,
                     requirement_files=None, upgrade=False,
-                    pip_args=()):
+                    pip_args=''):
     """This will install a Python package.
 
     Can specify a specific version.
@@ -237,7 +237,7 @@ def install_package(package, version=False, pre=False, virtualenv_path=False,
     """
     logger.info('Installing {0}...'.format(package))
     pip_cmd = ['pip', 'install']
-    pip_cmd.extend(pip_args)
+    pip_cmd.extend(pip_args.split())
     if virtualenv_path:
         pip_cmd[0] = os.path.join(
             _get_env_bin_path(virtualenv_path), pip_cmd[0])
@@ -330,7 +330,7 @@ class CloudifyInstaller():
                  pre=False,
                  source='',
                  with_requirements='',
-                 pip_args=(),
+                 pip_args='',
                  python_path=sys.executable,
                  install_pip=False,
                  install_virtualenv=False,
@@ -723,12 +723,12 @@ def parse_args(args=None):
         help='Upgrades Cloudify if already installed.',
     )
     parser.add_argument(
-        '-p', '--pip-arg',
+        '-p', '--pip-args',
         type=str,
-        nargs='*',
         help='Additional arguments to supply to pip. These will be used for '
              'the duration of this script but will not apply when, e.g. '
-             'bootstrapping cloudify.',
+             'bootstrapping cloudify. You will likely need to quote this if '
+             'you are using more than one argument.',
     )
 
     # OS dependent arguments
@@ -839,9 +839,6 @@ def parse_args(args=None):
 
     # use_branch should be discarded now as it is just used to set source
     parsed_args.pop('use_branch')
-
-    # Renaming pip_arg for clarity elsewhere
-    parsed_args['pip_args'] = parsed_args.pop('pip_arg')
 
     if parsed_args['source'] and not parsed_args['with_requirements']:
         logger.warning(
