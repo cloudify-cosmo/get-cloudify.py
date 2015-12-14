@@ -404,7 +404,7 @@ class CliBuilderUnitTests(testtools.TestCase):
         self.get_cloudify.IS_WIN = True
 
         result = self.get_cloudify._get_env_bin_path('path')
-        self.assertEquals('path/scripts', result)
+        self.assertEquals(os.path.join('path', 'scripts'), result)
 
     @mock.patch('get-cloudify.IS_WIN')
     def test_get_env_bin_path_not_windows(self, mock_win):
@@ -412,7 +412,7 @@ class CliBuilderUnitTests(testtools.TestCase):
         self.get_cloudify.IS_WIN = False
 
         result = self.get_cloudify._get_env_bin_path('path')
-        self.assertEquals('path/bin', result)
+        self.assertEquals(os.path.join('path', 'bin'), result)
 
     @mock.patch('get-cloudify.os')
     def test_is_root(self, mock_os):
@@ -673,8 +673,7 @@ class CliBuilderUnitTests(testtools.TestCase):
     @mock.patch('get-cloudify.logger')
     @mock.patch('get-cloudify._run')
     @mock.patch('get-cloudify.IS_VIRTUALENV')
-    @mock.patch('get-cloudify._get_env_bin_path',
-                return_value='/my/venv/bin')
+    @mock.patch('get-cloudify._get_env_bin_path')
     def test_install_with_venv_path(self,
                                     mock_bin_path,
                                     mock_is_venv,
@@ -687,21 +686,33 @@ class CliBuilderUnitTests(testtools.TestCase):
             return_value=0,
         )
 
+        test_package = 'test-package'
+        if self.get_cloudify.IS_WIN:
+            venv_path = 'C:\\my\\venv'
+            venv_bin_path = 'C:\\my\\venv\\scripts'
+            expected_call = '{path}\\scripts\\pip install {package}'
+        else:
+            venv_path = '/my/venv'
+            venv_bin_path = '/my/venv/bin'
+            expected_call = '{path}/bin/pip install {package}'
+        expected_call = expected_call.format(
+            path=venv_path,
+            package=test_package,
+        )
+        mock_bin_path.return_value = venv_bin_path
+
         self.get_cloudify._install_package('test-package',
-                                           virtualenv_path='/my/venv')
+                                           virtualenv_path=venv_path)
 
         mock_log.info.assert_called_once_with(
             'Installing test-package...',
         )
-        mock_run.assert_called_once_with(
-            '/my/venv/bin/pip install test-package',
-        )
+        mock_run.assert_called_once_with(expected_call)
 
     @mock.patch('get-cloudify.logger')
     @mock.patch('get-cloudify._run')
     @mock.patch('get-cloudify.IS_VIRTUALENV')
-    @mock.patch('get-cloudify._get_env_bin_path',
-                return_value='/my/venv/bin')
+    @mock.patch('get-cloudify._get_env_bin_path')
     def test_install_with_venv_path_ignores_current_venv(self,
                                                          mock_bin_path,
                                                          mock_is_venv,
@@ -714,37 +725,64 @@ class CliBuilderUnitTests(testtools.TestCase):
             return_value=0,
         )
 
+        test_package = 'test-package'
+        if self.get_cloudify.IS_WIN:
+            venv_path = 'C:\\my\\venv'
+            venv_bin_path = 'C:\\my\\venv\\scripts'
+            expected_call = '{path}\\scripts\\pip install {package}'
+        else:
+            venv_path = '/my/venv'
+            venv_bin_path = '/my/venv/bin'
+            expected_call = '{path}/bin/pip install {package}'
+        expected_call = expected_call.format(
+            path=venv_path,
+            package=test_package,
+        )
+        mock_bin_path.return_value = venv_bin_path
+
         self.get_cloudify._install_package('test-package',
-                                           virtualenv_path='/my/venv')
+                                           virtualenv_path=venv_path)
 
         mock_log.info.assert_called_once_with(
             'Installing test-package...',
         )
-        mock_run.assert_called_once_with(
-            '/my/venv/bin/pip install test-package',
-        )
+        mock_run.assert_called_once_with(expected_call)
 
     def test_get_os_props(self):
-        distro = self.get_cloudify._get_os_props()[0]
-        distros = ('ubuntu', 'redhat', 'debian', 'fedora', 'centos',
-                   'archlinux')
-        if distro.lower() not in distros:
-            self.fail('distro prop \'{0}\' should be equal to one of: '
-                      '{1}'.format(distro, distros))
+        if not self.get_cloudify.IS_WIN:
+            distro = self.get_cloudify._get_os_props()[0]
+            distros = ('ubuntu', 'redhat', 'debian', 'fedora', 'centos',
+                       'archlinux')
+            if distro.lower() not in distros:
+                self.fail('distro prop \'{0}\' should be equal to one of: '
+                          '{1}'.format(distro, distros))
 
     def test_download_file(self):
         self.get_cloudify.VERBOSE = True
-        tmp_file = tempfile.NamedTemporaryFile(delete=True)
-        self.get_cloudify._download_file('http://www.google.com', tmp_file.name)
-        with open(tmp_file.name) as f:
+        # We cannot use NamedTemporaryFile here as it will fail on Windows
+        # where a NamedTemporaryFile can only be written to using the file
+        # handle returned from the NamedTemporaryFile call
+        tmpdir = tempfile.mkdtemp()
+        tmp_file_name = os.path.join(tmpdir, 'testfile')
+        self.get_cloudify._download_file('http://www.google.com',
+                                         tmp_file_name)
+        with open(tmp_file_name) as f:
             content = f.readlines()
             self.assertIsNotNone(content)
+        shutil.rmtree(tmpdir)
 
     def test_check_cloudify_not_installed_in_venv(self):
         tmp_venv = tempfile.mkdtemp()
+        # Handle windows and linux by using correct python path
+        # sys.executable would be nicer, but appveyor stopped showing logs
+        # when using that
+        if self.get_cloudify.IS_WIN:
+            python_path = 'c:\\python27\python.exe'
+        else:
+            python_path = 'python'
         installer = self.get_cloudify.CloudifyInstaller(virtualenv=tmp_venv)
         try:
-            self.get_cloudify._make_virtualenv(tmp_venv, 'python')
+            self.get_cloudify._make_virtualenv(tmp_venv, python_path)
             self.assertFalse(
                 installer.check_cloudify_installed()
             )
@@ -753,8 +791,15 @@ class CliBuilderUnitTests(testtools.TestCase):
 
     def test_check_cloudify_installed_in_venv(self):
         tmp_venv = tempfile.mkdtemp()
+        # Handle windows and linux by using correct python path
+        # sys.executable would be nicer, but appveyor stopped showing logs
+        # when using that
+        if self.get_cloudify.IS_WIN:
+            python_path = 'c:\\python27\python.exe'
+        else:
+            python_path = 'python'
         try:
-            self.get_cloudify._make_virtualenv(tmp_venv, 'python')
+            self.get_cloudify._make_virtualenv(tmp_venv, python_path)
             installer = get_cloudify.CloudifyInstaller(virtualenv=tmp_venv)
             installer.execute()
             self.assertTrue(

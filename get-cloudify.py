@@ -196,7 +196,7 @@ def _drop_root_privileges():
     This is used so that when installing cloudify within a virtualenv
     using sudo, the default behavior will not be to install using sudo
     as a virtualenv is created especially so that users don't have to
-    install in the system Python or using a Sudoer.
+    install in the system Python or using a sudoer.
     """
     # maybe we're not root
     if not _is_root():
@@ -215,8 +215,17 @@ def _make_virtualenv(virtualenv_dir, python_path):
     logger.info('Creating Virtualenv {0}...'.format(virtualenv_dir))
     result = _run('virtualenv -p {0} {1}'.format(python_path, virtualenv_dir))
     if not result.returncode == 0:
+        logger.error(
+            'Virtualenv creation output: {out}. '
+            'Error output: {error}.'.format(
+                out=result.aggr_stdout,
+                error=result.aggr_stderr,
+            )
+        )
         _exit(
-            message='Could not create virtualenv: {0}'.format(virtualenv_dir),
+            message='Could not create virtualenv: {path}'.format(
+                path=virtualenv_dir,
+            ),
             status='virtualenv_creation_failure',
         )
 
@@ -360,7 +369,7 @@ class CloudifyInstaller():
             raise ArgumentNotValidForOS(
                 'Pycrypto is only relevant on Windows.'
             )
-        if not (IS_LINUX or IS_DARWIN) and self.installpythondev:
+        if not (IS_LINUX or IS_DARWIN) and self.install_pythondev:
             raise ArgumentNotValidForOS(
                 'Pythondev is only relevant on Linux or OSX'
             )
