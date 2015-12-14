@@ -143,6 +143,8 @@ class CliInstallTests(testtools.TestCase):
                 self.get_cloudify._get_env_bin_path(tempdir), 'cfy')
             proc = self.get_cloudify._run('{0} --version'.format(cfy_path))
             self.assertIn('Cloudify CLI 3', proc.aggr_stderr)
-            assert 'm' in proc.aggr_stderr or 'rc' in proc.aggr_stderr
+            # We would also like to check that m (milestone) or r (release
+            # candidate) appears in the output, but that doesn't happen all of
+            # the time- e.g. it is absent just after a major release.
         finally:
             shutil.rmtree(tempdir)
