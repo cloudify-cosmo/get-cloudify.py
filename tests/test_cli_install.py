@@ -16,6 +16,7 @@
 import testtools
 import shutil
 import tempfile
+import mock
 import os
 import importlib
 import sys
@@ -33,6 +34,7 @@ class CliInstallTests(testtools.TestCase):
     def install_cloudify(args):
         installer = get_cloudify.CloudifyInstaller(**args)
         installer.execute()
+        return installer
 
     def setUp(self):
         super(CliInstallTests, self).setUp()
@@ -47,33 +49,42 @@ class CliInstallTests(testtools.TestCase):
 
         try:
             self.install_cloudify(install_args)
+            if self.get_cloudify.IS_WIN:
+                cfy_name = 'cfy.exe'
+            else:
+                cfy_name = 'cfy'
             cfy_path = os.path.join(
-                self.get_cloudify._get_env_bin_path(tempdir), 'cfy')
-            proc = self.get_cloudify.run('{0} --version'.format(cfy_path))
+                self.get_cloudify._get_env_bin_path(tempdir), cfy_name)
+            proc = self.get_cloudify._run('{0} --version'.format(cfy_path))
             self.assertIn('Cloudify CLI 3', proc.aggr_stderr)
         finally:
             shutil.rmtree(tempdir)
 
     def test_install_from_source_with_requirements(self):
         tempdir = tempfile.mkdtemp()
-        temp_requirements_file = tempfile.NamedTemporaryFile(delete=True)
-        with open(temp_requirements_file.name, 'w') as requirements_file:
-            requirements_file.write('sh==1.11')
+        temp_requirements_file = os.path.join(tempdir, 'temprequirements.txt')
+        with open(temp_requirements_file, 'w') as requirements_file:
+            # We use mock for tests so we'll fail elsewhere on a name change
+            requirements_file.write('mock')
         install_args = {
             'source': cloudify_cli_url,
-            'withrequirements': [temp_requirements_file.name],
+            'with_requirements': [temp_requirements_file],
             'virtualenv': tempdir,
         }
 
         try:
             self.install_cloudify(install_args)
+            if self.get_cloudify.IS_WIN:
+                cfy_name = 'cfy.exe'
+            else:
+                cfy_name = 'cfy'
             cfy_path = os.path.join(
-                self.get_cloudify._get_env_bin_path(tempdir), 'cfy')
-            proc = self.get_cloudify.run('{0} --version'.format(cfy_path))
+                self.get_cloudify._get_env_bin_path(tempdir), cfy_name)
+            proc = self.get_cloudify._run('{0} --version'.format(cfy_path))
             self.assertIn('Cloudify CLI 3', proc.aggr_stderr)
+            # TODO: We should check that mock also gets installed
         finally:
             shutil.rmtree(tempdir)
-            temp_requirements_file.close()
 
     def test_cli_installed_and_upgrade(self):
         tempdir = tempfile.mkdtemp()
@@ -84,11 +95,14 @@ class CliInstallTests(testtools.TestCase):
 
         try:
             self.install_cloudify(install_args)
-            self.get_cloudify.handle_upgrade(**install_args)
+            # Repeat should succeed with upgrade flag set
+            self.install_cloudify(install_args)
         finally:
             shutil.rmtree(tempdir)
 
-    def test_cli_installed_and_no_upgrade(self):
+    @mock.patch('get-cloudify._exit',
+                side_effect=SystemExit)
+    def test_cli_installed_and_no_upgrade(self, mock_exit):
         tempdir = tempfile.mkdtemp()
         install_args = {
             'virtualenv': tempdir,
@@ -97,9 +111,15 @@ class CliInstallTests(testtools.TestCase):
 
         try:
             self.install_cloudify(install_args)
-            ex = self.assertRaises(
-                SystemExit, self.get_cloudify.handle_upgrade, **install_args)
-            self.assertEqual(1, ex.message)
+            self.assertRaises(
+                SystemExit,
+                self.install_cloudify,
+                install_args,
+            )
+            mock_exit.assert_called_once_with(
+                message='Use the --upgrade flag to upgrade.',
+                status='cloudify_already_installed',
+            )
         finally:
             shutil.rmtree(tempdir)
 
@@ -111,28 +131,13 @@ class CliInstallTests(testtools.TestCase):
         }
         try:
             self.install_cloudify(install_args)
+            if self.get_cloudify.IS_WIN:
+                cfy_name = 'cfy.exe'
+            else:
+                cfy_name = 'cfy'
             cfy_path = os.path.join(
-                self.get_cloudify._get_env_bin_path(tempdir), 'cfy')
-            proc = self.get_cloudify.run('{0} --version'.format(cfy_path))
+                self.get_cloudify._get_env_bin_path(tempdir), cfy_name)
+            proc = self.get_cloudify._run('{0} --version'.format(cfy_path))
             self.assertIn('Cloudify CLI 3.2', proc.aggr_stderr)
         finally:
             shutil.rmtree(tempdir)
-
-    # TODO: this test is important.. but it's currently hard to test this
-    # while a --pre version isn't deployed to PyPI. We need to come up
-    # with a workaround.
-    # def test_cli_install_pre(self):
-    #     tempdir = tempfile.mkdtemp()
-    #     install_args = {
-    #         'virtualenv': tempdir,
-    #         'pre': True
-    #     }
-    #     try:
-    #         self.install_cloudify(install_args)
-    #         cfy_path = os.path.join(
-    #             self.get_cloudify._get_env_bin_path(tempdir), 'cfy')
-    #         proc = self.get_cloudify.run('{0} --version'.format(cfy_path))
-    #         self.assertIn('Cloudify CLI 3', proc.aggr_stderr)
-    #         assert 'm' in proc.aggr_stderr or 'rc' in proc.aggr_stderr
-    #     finally:
-    #         shutil.rmtree(tempdir)
