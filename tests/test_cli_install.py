@@ -141,27 +141,3 @@ class CliInstallTests(testtools.TestCase):
             self.assertIn('Cloudify CLI 3.2', proc.aggr_stderr)
         finally:
             shutil.rmtree(tempdir)
-
-    # Note: This test WILL fail when there is no PRE version (e.g. just after
-    # a major version is released)
-    def test_cli_install_pre(self):
-        tempdir = tempfile.mkdtemp()
-        install_args = {
-            'virtualenv': tempdir,
-            'pre': True
-        }
-        try:
-            self.install_cloudify(install_args)
-            if self.get_cloudify.IS_WIN:
-                cfy_name = 'cfy.exe'
-            else:
-                cfy_name = 'cfy'
-            cfy_path = os.path.join(
-                self.get_cloudify._get_env_bin_path(tempdir), cfy_name)
-            proc = self.get_cloudify._run('{0} --version'.format(cfy_path))
-            self.assertIn('Cloudify CLI 3', proc.aggr_stderr)
-            # We would also like to check that m (milestone) or r (release
-            # candidate) appears in the output, but that doesn't happen all of
-            # the time- e.g. it is absent just after a major release.
-        finally:
-            shutil.rmtree(tempdir)
