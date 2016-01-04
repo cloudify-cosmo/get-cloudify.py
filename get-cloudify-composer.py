@@ -33,6 +33,8 @@ from contextlib import closing
 DESCRIPTION = '''This script installs Cloudify's Composer on Linux and OS X.
 This requires that you have Python 2.7, pip 1.5+ and virtualenv 12+ installed.
 pip and virtualenv should be accessible within the $PATH.
+
+The installation process requires an internet connection.
 '''
 
 
@@ -40,12 +42,10 @@ IS_VIRTUALENV = hasattr(sys, 'real_prefix')
 
 REQUIREMENT_FILE_NAMES = ['dev-requirements.txt', 'requirements.txt']
 
-PIP_URL = 'https://bootstrap.pypa.io/get-pip.py'
-
-LINUX_NODEJS_URL = 'http://nodejs.org/dist/v{0}/node-v{0}-linux-x64.tar.gz'.format('0.10.35')  # NOQA
-OSX_NODEJS_URL = 'https://nodejs.org/download/release/v{0}/node-v{0}-darwin-x64.tar.gz'.format('0.10.35')  # NOQA
-DSL_PARSER_CLI_URL = 'https://github.com/cloudify-cosmo/cloudify-dsl-parser-cli/archive/3.3.zip'  # NOQA
-COMPOSER_URL = 'https://s3.amazonaws.com/cloudify-ui/composer-builds/{0}/blueprintcomposer-{0}.tgz'  # NOQA
+LINUX_NODEJS_SOURCE = 'http://nodejs.org/dist/v{0}/node-v{0}-linux-x64.tar.gz'.format('0.10.35')  # NOQA
+OSX_NODEJS_SOURCE = 'https://nodejs.org/download/release/v{0}/node-v{0}-darwin-x64.tar.gz'.format('0.10.35')  # NOQA
+DSL_PARSER_CLI_SOURCE = 'https://github.com/cloudify-cosmo/cloudify-dsl-parser-cli/archive/3.3.zip'  # NOQA
+COMPOSER_SOURCE = 'https://s3.amazonaws.com/cloudify-ui/composer-builds/{0}/blueprintcomposer-{0}.tgz'.format('3.3.0')  # NOQA
 
 PLATFORM = sys.platform
 IS_WIN = (PLATFORM.startswith('win32'))
@@ -245,27 +245,25 @@ class ComposerInstaller():
     COMPOSER_HOME = os.path.join(HOME, 'blueprint-composer')
     DSL_PARSER_HOME = os.path.join(HOME, 'cloudify-dsl-parser')
 
-    def __init__(self, composer_url='', version='', uninstall=False,
-                 nodejs_url=LINUX_NODEJS_URL if IS_LINUX else OSX_NODEJS_URL,
-                 dsl_cli_url=DSL_PARSER_CLI_URL):
+    def __init__(self, composer_source=COMPOSER_SOURCE, uninstall=False,
+                 nodejs_source=LINUX_NODEJS_SOURCE if IS_LINUX
+                 else OSX_NODEJS_SOURCE,
+                 dsl_cli_source=DSL_PARSER_CLI_SOURCE):
         if IS_WIN:
             sys.exit('This installer does not currently support installing '
                      'the composer on Windows.')
 
-        if (not composer_url and not version and not uninstall):
-            sys.exit('Either composer_url or version must be supplied.')
-
         self.uninstall = uninstall
-        self.nodejs_url = nodejs_url
-        self.dsl_cli_url = dsl_cli_url
-        self.composer_url = composer_url or COMPOSER_URL.format(version)
+        self.nodejs_source = nodejs_source
+        self.dsl_cli_source = dsl_cli_source
+        self.composer_source = composer_source
 
     def execute(self):
         if not self._find_pip:
-            lgr.error('pip must be installed for the composer to '
+            lgr.error('pip 1.5+ must be installed for the composer to '
                       'install correctly. Please install pip and try again.')
         if not self._find_virtualenv:
-            lgr.error('virtualenv must be installed for the composer to '
+            lgr.error('virtualenv 12+ must be installed for the composer to '
                       'install correctly. Please install virtualenv and try '
                       'again.')
         if self.uninstall:
@@ -292,61 +290,63 @@ class ComposerInstaller():
             'to run Cloudify Blueprint Composer.'.format(
                 self.NODEJS_HOME, self.COMPOSER_HOME))
 
-    def set_source(self, source):
+    def is_url(self, source):
         if '://' in source:
             split = source.split('://')
             schema = split[0]
             if schema in ['http', 'https']:
-                tmpdir = tempfile.mkdtemp()
-                fd, tmpfile = tempfile.mkstemp()
-                os.close(fd)
-                try:
-                    self.remove_source_after_process = True
-                    download_file(source, tmpfile)
-                    source = untar(tmpfile, tmpdir)
-                finally:
-                    os.remove(tmpfile)
+                return True
             else:
                 lgr.error('Source URL type {0} is not supported'.format(
                     schema))
                 sys.exit('Unsupported URL type (must be http or https).')
         elif os.path.isfile(source):
-            self.remove_source_after_process = True
-            tmpdir = tempfile.mkdtemp()
-            source = untar(source, tmpdir)
-        return source
+            return False
+        else:
+            lgr.error('Source {0} could not be found'.format(source))
+            sys.exit(1)
 
     def install_nodejs(self):
-        td = tempfile.mkdtemp()
-        fd, tf = tempfile.mkstemp()
-        os.close(fd)
-        if not os.path.isdir(self.NODEJS_HOME):
-            os.makedirs(self.NODEJS_HOME)
-        try:
-            download_file(self.nodejs_url, tf)
-            untar(tf, td)
+        def extract(archive, destination):
+            untar(archive, destination)
             source = os.path.join(
-                td, [d for d in os.walk(td).next()[1]][0])
+                td, [d for d in os.walk(destination).next()[1]][0])
             for obj in os.listdir(source):
                 shutil.move(os.path.join(source, obj), self.NODEJS_HOME)
-        finally:
-            shutil.rmtree(td)
-            os.remove(tf)
+
+        td = tempfile.mkdtemp()
+        if self.is_url(self.nodejs_source):
+            fd, tf = tempfile.mkstemp()
+            os.close(fd)
+            if not os.path.isdir(self.NODEJS_HOME):
+                os.makedirs(self.NODEJS_HOME)
+            try:
+                download_file(self.nodejs_source, tf)
+                extract(tf, td)
+            finally:
+                shutil.rmtree(td)
+                os.remove(tf)
+        else:
+            untar(self.nodejs_source, td)
 
     def install_dsl_parser(self):
         make_virtualenv(self.DSL_PARSER_HOME)
-        install_module(self.dsl_cli_url, virtualenv_path=self.DSL_PARSER_HOME)
+        install_module(
+            self.dsl_cli_source, virtualenv_path=self.DSL_PARSER_HOME)
 
     def install_composer(self):
-        fd, tf = tempfile.mkstemp()
-        os.close(fd)
-        if not os.path.isdir(self.COMPOSER_HOME):
-            os.makedirs(self.COMPOSER_HOME)
-        try:
-            download_file(self.composer_url, tf)
-            untar(tf, self.COMPOSER_HOME)
-        finally:
-            os.remove(tf)
+        if self.is_url(self.composer_source):
+            fd, tf = tempfile.mkstemp()
+            os.close(fd)
+            if not os.path.isdir(self.COMPOSER_HOME):
+                os.makedirs(self.COMPOSER_HOME)
+            try:
+                download_file(self.composer_source, tf)
+                untar(tf, self.COMPOSER_HOME)
+            finally:
+                os.remove(tf)
+        else:
+            untar(self.composer_source, self.COMPOSER_HOME)
 
     def remove_all(self):
         action = raw_input(
@@ -394,22 +394,19 @@ def parse_args(args=None):
 
     action_group = parser.add_mutually_exclusive_group(required=True)
     action_group.add_argument(
-        '--version', type=str,
-        help='Installs a specific version.')
-    action_group.add_argument(
-        '--composer-url', type=str,
-        help='A URL to Cloudify\'s Composer package.')
+        '--composer-source', type=str,
+        help='A URL or local path to Cloudify\'s Composer package.')
     action_group.add_argument(
         '--uninstall', action='store_true',
         help='Uninstalls the composer.')
     parser.add_argument(
-        '--nodejs-url', type=str,
-        default=LINUX_NODEJS_URL if IS_LINUX else OSX_NODEJS_URL,
-        help='A URL to a nodejs archive for your distro. This defaults '
-        'to the official URL.')
+        '--nodejs-source', type=str,
+        default=LINUX_NODEJS_SOURCE if IS_LINUX else OSX_NODEJS_SOURCE,
+        help='A URL or local path to a nodejs archive for your distro. '
+        'This defaults to the official URL.')
     parser.add_argument(
-        '--dsl-cli-url', type=str, default=DSL_PARSER_CLI_URL,
-        help='A URL to the Cloudify-dsl-parser-cli archive.')
+        '--dsl-cli-source', type=str, default=DSL_PARSER_CLI_SOURCE,
+        help='A URL or local path to the cloudify-dsl-parser-cli archive.')
 
     return parser.parse_args(args)
 
