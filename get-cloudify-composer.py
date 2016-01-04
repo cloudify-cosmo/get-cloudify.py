@@ -392,11 +392,10 @@ def parse_args(args=None):
     default_group.add_argument('-q', '--quiet', action='store_true',
                                help='Only print errors.')
 
-    action_group = parser.add_mutually_exclusive_group(required=True)
-    action_group.add_argument(
-        '--composer-source', type=str,
+    parser.add_argument(
+        '--composer-source', type=str, default=COMPOSER_SOURCE,
         help='A URL or local path to Cloudify\'s Composer package.')
-    action_group.add_argument(
+    parser.add_argument(
         '--uninstall', action='store_true',
         help='Uninstalls the composer.')
     parser.add_argument(
