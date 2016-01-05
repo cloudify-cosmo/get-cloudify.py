@@ -37,7 +37,6 @@ pip and virtualenv should be accessible within the $PATH.
 The installation process requires an internet connection.
 '''
 
-
 IS_VIRTUALENV = hasattr(sys, 'real_prefix')
 
 REQUIREMENT_FILE_NAMES = ['dev-requirements.txt', 'requirements.txt']
@@ -59,6 +58,12 @@ lgr = None
 
 if not (IS_LINUX or IS_DARWIN):
     sys.exit('Platform {0} not supported.'.format(PLATFORM))
+
+major, minor, micro, _, _ = sys.version_info
+if major != 2 and minor != 7:
+    sys.exit('Python 2.7.x is required for this script to run. '
+             'It seems you\'re running {0}.{1}.{2}.'.format(
+                 major, minor, micro))
 
 
 def init_logger(logger_name):
