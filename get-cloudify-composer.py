@@ -276,7 +276,7 @@ class ComposerInstaller():
             sys.exit(self.remove_all())
 
         if os.path.isdir(self.HOME):
-            action = input(
+            action = raw_input(
                 '{0} already exists. Would you like to continue with the '
                 'installation? (This will remove previous folders and files.) '
                 '(yes/no):'.format(self.HOME))
@@ -354,7 +354,7 @@ class ComposerInstaller():
             untar(self.composer_source, self.COMPOSER_HOME)
 
     def remove_all(self):
-        action = input(
+        action = raw_input(
             'Note that this will remove the following: \n'
             '{0}\n{1}\n{2}\n'
             'Are you should you want to continue? (yes/no): '.format(
