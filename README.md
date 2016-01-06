@@ -1,3 +1,5 @@
+* Master [![Circle CI](https://circleci.com/gh/cloudify-cosmo/get-cloudify.py/tree/master.svg?style=shield)](https://circleci.com/gh/cloudify-cosmo/get-cloudify.py/tree/master)
+
 This scripts installs Cloudify's CLI (http://github.com/cloudify-cosmo/cloudify-cli).
 
 It currently supports Windows (32 and 64 bit), OSX, Debian/RHEL based distributions and Arch.
