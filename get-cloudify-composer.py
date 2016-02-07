@@ -127,7 +127,7 @@ def drop_root_privileges():
     os.seteuid(int(os.environ.get('SUDO_UID', 0)))
 
 
-def make_virtualenv(virtualenv_dir, python_path='sys.executable'):
+def make_virtualenv(virtualenv_dir, python_path=sys.executable):
     """This will create a virtualenv. If no `python_path` is supplied,
     will assume that `python` is in path. This default assumption is provided
     via the argument parser.
