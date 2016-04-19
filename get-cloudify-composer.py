@@ -41,10 +41,11 @@ IS_VIRTUALENV = hasattr(sys, 'real_prefix')
 
 REQUIREMENT_FILE_NAMES = ['dev-requirements.txt', 'requirements.txt']
 
-LINUX_NODEJS_SOURCE = 'http://nodejs.org/dist/v{0}/node-v{0}-linux-x64.tar.gz'.format('0.10.35')  # NOQA
-OSX_NODEJS_SOURCE = 'https://nodejs.org/download/release/v{0}/node-v{0}-darwin-x64.tar.gz'.format('0.10.35')  # NOQA
+LINUX_NODEJS_SOURCE = 'http://nodejs.org/dist/v{0}/node-v{0}-linux-x64.tar.gz'.format('4.4.3')  # NOQA
+OSX_NODEJS_SOURCE = 'https://nodejs.org/download/release/v{0}/node-v{0}-darwin-x64.tar.gz'.format('4.4.3')  # NOQA
 DSL_PARSER_CLI_SOURCE = 'https://github.com/cloudify-cosmo/cloudify-dsl-parser-cli/archive/3.3.zip'  # NOQA
-COMPOSER_SOURCE = 'http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/{0}/ga-RELEASE/composer/cloudify-blueprint-composer-{0}-ga-b300.tgz'.format('3.3.0') # NOQA
+COMPOSER_STABLE_SOURCE = 'http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/{0}/ga-RELEASE/composer/cloudify-blueprint-composer-{0}-ga-b300.tgz'.format('3.3.0')  # NOQA
+COMPOSER_NIGHTLY_SOURCE = 'http://cloudify-ui.s3.amazonaws.com/continuous-build/stable/cloudify-blueprint-composer/{0}/m{1}/blueprintcomposer-{0}.tgz'.format('3.4.0', '4')  # NOQA
 
 PLATFORM = sys.platform
 IS_WIN = (PLATFORM.startswith('win32'))
@@ -250,7 +251,8 @@ class ComposerInstaller():
     COMPOSER_HOME = os.path.join(HOME, 'blueprint-composer')
     DSL_PARSER_HOME = os.path.join(HOME, 'cloudify-dsl-parser')
 
-    def __init__(self, composer_source=COMPOSER_SOURCE, uninstall=False,
+    def __init__(self, composer_source=COMPOSER_STABLE_SOURCE, uninstall=False,
+                 nightly=False,
                  nodejs_source=LINUX_NODEJS_SOURCE if IS_LINUX
                  else OSX_NODEJS_SOURCE,
                  dsl_cli_source=DSL_PARSER_CLI_SOURCE):
@@ -261,7 +263,8 @@ class ComposerInstaller():
         self.uninstall = uninstall
         self.nodejs_source = nodejs_source
         self.dsl_cli_source = dsl_cli_source
-        self.composer_source = composer_source
+        self.composer_source = \
+            composer_source if not nightly else COMPOSER_NIGHTLY_SOURCE
 
     def execute(self):
         if not self._find_pip:
@@ -398,7 +401,10 @@ def parse_args(args=None):
                                help='Only print errors.')
 
     parser.add_argument(
-        '--composer-source', type=str, default=COMPOSER_SOURCE,
+        '--nightly', action='store_true', default=False,
+        help='Installs the latest stable nightly build')
+    parser.add_argument(
+        '--composer-source', type=str, default=COMPOSER_STABLE_SOURCE,
         help='A URL or local path to Cloudify\'s Composer package.')
     parser.add_argument(
         '--uninstall', action='store_true',
