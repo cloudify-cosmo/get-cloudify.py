@@ -18,6 +18,7 @@
 import sys
 import subprocess
 import argparse
+import json
 import platform
 import os
 import urllib
@@ -291,6 +292,7 @@ class ComposerInstaller():
         self.install_nodejs()
         self.install_composer()
         self.install_dsl_parser()
+        self.inject_dsl_parser_configuration()
         lgr.info(
             'You can now run: '
             'sudo {0}/bin/node '
@@ -313,6 +315,17 @@ class ComposerInstaller():
         else:
             lgr.error('Source {0} could not be found'.format(source))
             sys.exit(1)
+
+    def inject_dsl_parser_configuration(self):
+        """inject DSL parser configuration into Composer installation
+        """
+        conf_path = \
+            os.path.join(self.COMPOSER_HOME, 'package/backend/conf/prod.json')
+        with open(conf_path, 'r') as conf_file:
+            conf = json.load(conf_file)
+        conf['dslParser']['virtualenv'] = self.DSL_PARSER_HOME
+        with open(conf_path, 'w') as conf_file:
+            json.dump(conf, conf_file)
 
     def install_nodejs(self):
         def extract(archive, destination):
