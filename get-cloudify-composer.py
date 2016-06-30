@@ -46,7 +46,7 @@ LINUX_NODEJS_SOURCE = 'http://nodejs.org/dist/v{0}/node-v{0}-linux-x64.tar.gz'.f
 OSX_NODEJS_SOURCE = 'https://nodejs.org/download/release/v{0}/node-v{0}-darwin-x64.tar.gz'.format('4.4.3')  # NOQA
 DSL_PARSER_CLI_SOURCE = 'https://github.com/cloudify-cosmo/cloudify-dsl-parser-cli/archive/3.3.zip'  # NOQA
 COMPOSER_STABLE_SOURCE = 'http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/{0}/ga-RELEASE/composer/cloudify-blueprint-composer-{0}-ga-b300.tgz'.format('3.3.0')  # NOQA
-COMPOSER_NIGHTLY_SOURCE = 'http://cloudify-ui.s3.amazonaws.com/continuous-build/stable/cloudify-blueprint-composer/{0}/m{1}/blueprintcomposer-{0}.tgz'.format('3.4.0', '4')  # NOQA
+COMPOSER_NIGHTLY_SOURCE = 'http://cloudify-ui.s3.amazonaws.com/continuous-build/stable/cloudify-blueprint-composer/{0}/ga/blueprintcomposer-{0}.tgz'.format('3.4.0')  # NOQA
 
 PLATFORM = sys.platform
 IS_WIN = (PLATFORM.startswith('win32'))
