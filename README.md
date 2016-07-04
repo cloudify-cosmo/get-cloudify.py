@@ -1,4 +1,5 @@
 [![Circle CI](https://circleci.com/gh/cloudify-cosmo/get-cloudify.py/tree/master.svg?style=shield)](https://circleci.com/gh/cloudify-cosmo/get-cloudify.py/tree/master)
+[![Build status](https://ci.appveyor.com/api/projects/status/rua8r22tsvvl05lt/branch/master?svg=true)](https://ci.appveyor.com/project/Cloudify/get-cloudify.py/branch/master)
 
 This scripts installs Cloudify's CLI (http://github.com/cloudify-cosmo/cloudify-cli).
 
