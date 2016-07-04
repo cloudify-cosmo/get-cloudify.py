@@ -1,4 +1,4 @@
-* Master [![Circle CI](https://circleci.com/gh/cloudify-cosmo/get-cloudify.py/tree/master.svg?style=shield)](https://circleci.com/gh/cloudify-cosmo/get-cloudify.py/tree/master)
+[![Circle CI](https://circleci.com/gh/cloudify-cosmo/get-cloudify.py/tree/master.svg?style=shield)](https://circleci.com/gh/cloudify-cosmo/get-cloudify.py/tree/master)
 
 This scripts installs Cloudify's CLI (http://github.com/cloudify-cosmo/cloudify-cli).
 
@@ -18,3 +18,6 @@ and run:
 ```bash
 python get-cloudify.py -h
 ```
+
+
+By default, the script will not install any prerequisites (such as pip, virtualenv, python-dev/devel, etc..) unless explicitly specified. It's important to read the help to understand what the script can do.
