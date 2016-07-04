@@ -42,18 +42,18 @@
 # Run python get-cloudify.py -f
 
 
-import sys
-import subprocess
-import argparse
-import platform
 import os
+import sys
+import time
 import urllib
 import struct
-import tempfile
-import logging
 import shutil
-import time
 import tarfile
+import logging
+import argparse
+import platform
+import tempfile
+import subprocess
 from threading import Thread
 
 # Future proofing for python 3.4+ - imp is being deprecated, but importlib
@@ -113,11 +113,10 @@ IS_VIRTUALENV = hasattr(sys, 'real_prefix')
 
 REQUIREMENT_FILE_NAMES = ['dev-requirements.txt', 'requirements.txt']
 
-# TODO: put these in a private storage
-repo = 'http://repository.cloudifysource.org/org/cloudify3/components'
-PIP_URL = '{repo}/get-pip.py'.format(repo=repo)
-PYCR64_URL = '{repo}/pycrypto-2.6.win-amd64-py2.7.exe'.format(repo=repo)
-PYCR32_URL = '{repo}/pycrypto-2.6.win32-py2.7.exe'.format(repo=repo)
+_REPO = 'http://repository.cloudifysource.org/org/cloudify3/components'
+PIP_URL = '{repo}/get-pip.py'.format(repo=_REPO)
+PYCR64_URL = '{repo}/pycrypto-2.6.win-amd64-py2.7.exe'.format(repo=_REPO)
+PYCR32_URL = '{repo}/pycrypto-2.6.win32-py2.7.exe'.format(repo=_REPO)
 
 PLATFORM = sys.platform
 IS_DARWIN = (PLATFORM == 'darwin')
@@ -134,9 +133,9 @@ logger = None
 def _init_logger(logger_name):
     logger = logging.getLogger(logger_name)
     handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter(fmt='%(asctime)s [%(levelname)s] '
-                                      '[%(name)s] %(message)s',
-                                  datefmt='%H:%M:%S')
+    formatter = logging.Formatter(
+        fmt='%(asctime)s [%(levelname)s] [%(name)s] %(message)s',
+        datefmt='%H:%M:%S')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
@@ -208,7 +207,9 @@ def _drop_root_privileges():
 
 
 def _make_virtualenv(virtualenv_dir, python_path):
-    """This will create a virtualenv. If no `python_path` is supplied,
+    """Create a virtualenv.
+
+    If no `python_path` is supplied,
     will assume that `python` is in path. This default assumption is provided
     via the argument parser.
     """
@@ -230,8 +231,12 @@ def _make_virtualenv(virtualenv_dir, python_path):
         )
 
 
-def _install_package(package, version=False, pre=False, virtualenv_path=False,
-                     requirement_files=None, upgrade=False,
+def _install_package(package,
+                     version=False,
+                     pre=False,
+                     virtualenv_path=False,
+                     requirement_files=None,
+                     upgrade=False,
                      pip_args=''):
     """This will install a Python package.
 
@@ -295,7 +300,7 @@ def _get_os_props():
 
 
 def _get_env_bin_path(env_path):
-    """returns the bin path for a virtualenv
+    """Returns the bin path for a virtualenv
     """
     # Not using virtualenv's path_locations due to potential race conditions.
     # Therefore we use just the fallback method to get reliable behaviour
@@ -367,7 +372,7 @@ class CloudifyInstaller():
         # exceptions will be raised.
         if not IS_WIN and self.install_pycrypto:
             raise ArgumentNotValidForOS(
-                'Pycrypto is only relevant on Windows.'
+                'PyCrypto is only relevant on Windows.'
             )
         if not (IS_LINUX or IS_DARWIN) and self.install_pythondev:
             raise ArgumentNotValidForOS(
@@ -392,7 +397,7 @@ class CloudifyInstaller():
     def execute(self):
         """Installation Logic
 
-        --force argument forces installation of all prerequisites.
+        `-f, --force` argument forces installation of all prerequisites.
         """
         logger.debug('Identified Platform: {0}'.format(PLATFORM))
         logger.debug('Identified Distribution: {0}'.format(self.distro))
@@ -455,10 +460,7 @@ class CloudifyInstaller():
             except ImportError:
                 found = False
         # Coerce result to boolean
-        if found:
-            return True
-        else:
-            return False
+        return bool(found)
 
     def get_virtualenv(self):
         if not self.is_installed('virtualenv'):
@@ -556,13 +558,14 @@ class CloudifyInstaller():
     # Windows only
     def get_pycrypto(self, virtualenv_path):
         """This will install PyCrypto to be used by Fabric.
+
         PyCrypto isn't compiled with Fabric on Windows by default thus it needs
         to be provided explicitly.
         It will attempt to install the 32 or 64 bit version according to the
         Python version installed.
         """
         # check 32/64bit to choose the correct PyCrypto installation
-        is_pyx32 = True if struct.calcsize("P") == 4 else False
+        is_pyx32 = struct.calcsize("P") == 4
 
         logger.info('Installing PyCrypto {0}bit...'.format(
             '32' if is_pyx32 else '64'))
@@ -580,7 +583,7 @@ class CloudifyInstaller():
                 logger.info('Upgrading...')
             else:
                 logger.warn('If your previous attempt to install failed, '
-                            'cloudify may be partially installed. You can '
+                            'Cloudify may be partially installed. You can '
                             "'upgrade' to fix this.")
                 _exit(
                     message='Use the --upgrade flag to upgrade.',
