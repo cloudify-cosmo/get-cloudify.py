@@ -45,7 +45,7 @@ REQUIREMENT_FILE_NAMES = ['dev-requirements.txt', 'requirements.txt']
 LINUX_NODEJS_SOURCE = 'http://nodejs.org/dist/v{0}/node-v{0}-linux-x64.tar.gz'.format('4.4.3')  # NOQA
 OSX_NODEJS_SOURCE = 'https://nodejs.org/download/release/v{0}/node-v{0}-darwin-x64.tar.gz'.format('4.4.3')  # NOQA
 DSL_PARSER_CLI_SOURCE = 'https://github.com/cloudify-cosmo/cloudify-dsl-parser-cli/archive/3.3.zip'  # NOQA
-COMPOSER_STABLE_SOURCE = 'http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/{0}/ga-RELEASE/composer/cloudify-blueprint-composer-{0}-ga-b300.tgz'.format('3.3.0')  # NOQA
+COMPOSER_STABLE_SOURCE = 'http://repository.cloudifysource.org/org/cloudify3/{0}/ga-RELEASE/cloudify-blueprint-composer-{0}-ga-b{1}.tgz'.format('3.4.0', '400')  # NOQA
 COMPOSER_NIGHTLY_SOURCE = 'http://cloudify-ui.s3.amazonaws.com/continuous-build/stable/cloudify-blueprint-composer/{0}/ga/blueprintcomposer-{0}.tgz'.format('3.4.0')  # NOQA
 
 PLATFORM = sys.platform
@@ -297,7 +297,7 @@ class ComposerInstaller():
             'You can now run: '
             'sudo {0}/bin/node '
             '{1}/package/server.js '
-            'to run Cloudify Blueprint Composer.'.format(
+            'to run Cloudify Blueprint Composer and then browse http://localhost:3000.'.format(
                 self.NODEJS_HOME, self.COMPOSER_HOME))
 
     def is_url(self, source):
