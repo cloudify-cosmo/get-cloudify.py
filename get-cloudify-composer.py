@@ -45,8 +45,8 @@ REQUIREMENT_FILE_NAMES = ['dev-requirements.txt', 'requirements.txt']
 LINUX_NODEJS_SOURCE = 'http://nodejs.org/dist/v{0}/node-v{0}-linux-x64.tar.gz'.format('4.4.3')  # NOQA
 OSX_NODEJS_SOURCE = 'https://nodejs.org/download/release/v{0}/node-v{0}-darwin-x64.tar.gz'.format('4.4.3')  # NOQA
 DSL_PARSER_CLI_SOURCE = 'https://github.com/cloudify-cosmo/cloudify-dsl-parser-cli/archive/3.4.zip'  # NOQA
-COMPOSER_STABLE_SOURCE = 'http://repository.cloudifysource.org/org/cloudify3/{0}/ga-RELEASE/cloudify-blueprint-composer-{0}-ga-b{1}.tgz'.format('3.4.0', '400')  # NOQA
-COMPOSER_NIGHTLY_SOURCE = 'http://cloudify-ui.s3.amazonaws.com/continuous-build/stable/cloudify-blueprint-composer/{0}/ga/blueprintcomposer-{0}.tgz'.format('3.4.0')  # NOQA
+COMPOSER_STABLE_SOURCE = 'http://repository.cloudifysource.org/cloudify/composer/cloudify-blueprint-composer-{0}.tgz'.format('2.3.0')  # NOQA
+#COMPOSER_NIGHTLY_SOURCE = 'http://cloudify-ui.s3.amazonaws.com/continuous-build/stable/cloudify-blueprint-composer/{0}/ga/blueprintcomposer-{0}.tgz'.format('3.4.0')  # NOQA
 
 PLATFORM = sys.platform
 IS_WIN = (PLATFORM.startswith('win32'))
@@ -264,8 +264,7 @@ class ComposerInstaller():
         self.uninstall = uninstall
         self.nodejs_source = nodejs_source
         self.dsl_cli_source = dsl_cli_source
-        self.composer_source = \
-            composer_source if not nightly else COMPOSER_NIGHTLY_SOURCE
+        self.composer_source = composer_source
 
     def execute(self):
         if not self._find_pip:
